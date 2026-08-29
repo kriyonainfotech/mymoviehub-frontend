@@ -1,0 +1,916 @@
+import { useState, useEffect } from 'react';
+import axios from 'axios';
+import { FaLayerGroup, FaPlus, FaFilm, FaTv, FaTimes, FaEdit, FaTrash, FaImage, FaSignOutAlt, FaUserCircle, FaCopy } from 'react-icons/fa';
+import { getDriveDirectLink } from '../components/Row';
+import { useAuth } from '../context/AuthContext';
+
+const Admin = () => {
+  const { logout } = useAuth();
+  const [currentView, setCurrentView] = useState(localStorage.getItem('adminView') || 'categories');
+
+  useEffect(() => {
+    localStorage.setItem('adminView', currentView);
+  }, [currentView]);
+
+  const [categories, setCategories] = useState([]);
+  const [movies, setMovies] = useState([]);
+  const [banners, setBanners] = useState([]);
+  const [users, setUsers] = useState([]);
+  const [notice, setNotice] = useState({ title: '', message: '', showTelegramButton: true, telegramLink: 'https://t.me/', isActive: false });
+  
+  // Category Form State
+  const [catName, setCatName] = useState('');
+  const [catSections, setCatSections] = useState([]);
+  const [isCatLargeRow, setIsCatLargeRow] = useState(false);
+  const [activeCategoryTab, setActiveCategoryTab] = useState('home');
+  const [categoryIdToEdit, setCategoryIdToEdit] = useState(null);
+
+  // Banner Form State
+  const initialBannerState = { pages: ['home'], title: '', subtitle: '', description: '', bgImage: '', movie: '' };
+  const [bannerData, setBannerData] = useState(initialBannerState);
+  const [isBannerModalOpen, setIsBannerModalOpen] = useState(false);
+  const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
+
+  // Content Modal State
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const initialContentState = {
+    title: '', description: '', type: 'movie', sections: [], categories: [],
+    year: new Date().getFullYear(), ageRating: 'U/A 16+',
+    durationOrSeasons: '', director: '', writer: '', cast: '', genres: '', tags: '',
+    driveVideoId: '', driveImageId: '', driveLargeImageId: '', seasons: []
+  };
+  const [contentData, setContentData] = useState(initialContentState);
+  const [selectedCategoryToAdd, setSelectedCategoryToAdd] = useState('');
+
+  useEffect(() => {
+    fetchCategories();
+    fetchMovies();
+    fetchBanners();
+    fetchNotice();
+    fetchUsers();
+  }, []);
+
+  const fetchNotice = async () => {
+    try {
+      const res = await axios.get(import.meta.env.VITE_API_URL + '/api/admin/notice');
+      if (res.data) {
+        setNotice(res.data);
+      }
+    } catch (err) { console.error(err); }
+  };
+
+  const fetchUsers = async () => {
+    try {
+      const res = await axios.get(import.meta.env.VITE_API_URL + '/api/admin/users');
+      setUsers(res.data);
+    } catch (err) { console.error(err); }
+  };
+
+  const fetchBanners = async () => {
+    try {
+      const res = await axios.get(import.meta.env.VITE_API_URL + '/api/admin/banners');
+      setBanners(res.data);
+    } catch (err) { console.error(err); }
+  };
+
+  const fetchCategories = async () => {
+    try {
+      const res = await axios.get(import.meta.env.VITE_API_URL + '/api/admin/categories');
+      setCategories(res.data);
+    } catch (err) { console.error(err); }
+  };
+
+  const fetchMovies = async () => {
+    try {
+      const res = await axios.get(import.meta.env.VITE_API_URL + '/api/admin/movies');
+      setMovies(res.data);
+    } catch (err) { console.error(err); }
+  };
+
+  const handleSaveNotice = async (e) => {
+    e.preventDefault();
+    try {
+      await axios.post(import.meta.env.VITE_API_URL + '/api/admin/notice', notice);
+      alert('Notice saved successfully!');
+    } catch (err) {
+      console.error(err);
+      alert('Failed to save notice');
+    }
+  };
+
+  // --- Category Handlers ---
+  const handleSectionToggle = (section) => {
+    setCatSections(prev => prev.includes(section) ? prev.filter(s => s !== section) : [...prev, section]);
+  };
+
+  const handleAddCategory = async (e) => {
+    e.preventDefault();
+    if (catSections.length === 0) return alert('Please select at least one section.');
+    try {
+      const payload = { name: catName, sections: catSections, isLargeRow: isCatLargeRow };
+      if (categoryIdToEdit) {
+        await axios.put(import.meta.env.VITE_API_URL + `/api/admin/category/${categoryIdToEdit}`, payload);
+        alert('Category updated successfully!');
+      } else {
+        await axios.post(import.meta.env.VITE_API_URL + '/api/admin/category', payload);
+        alert('Category added successfully!');
+      }
+      setCatName(''); setCatSections([]); setIsCatLargeRow(false); setCategoryIdToEdit(null); fetchCategories();
+      setIsCategoryModalOpen(false);
+    } catch (err) { alert('Error saving category.'); }
+  };
+
+  const handleEditCategory = (cat) => {
+    setCatName(cat.name);
+    setCatSections(cat.sections || []);
+    setIsCatLargeRow(cat.isLargeRow || false);
+    setCategoryIdToEdit(cat._id);
+    setIsCategoryModalOpen(true);
+  };
+
+  const handleDeleteCategory = async (id) => {
+    if (!window.confirm('Are you sure you want to delete this category?')) return;
+    try {
+      await axios.delete(import.meta.env.VITE_API_URL + `/api/admin/category/${id}`);
+      fetchCategories();
+    } catch (err) { alert('Error deleting category'); }
+  };
+
+  // --- Content Form Handlers ---
+  const openModal = () => {
+    setContentData(initialContentState);
+    setIsModalOpen(true);
+  };
+
+  const handleAddCategoryToContent = () => {
+    if (!selectedCategoryToAdd) return;
+    if (!contentData.categories.includes(selectedCategoryToAdd)) {
+      setContentData(prev => ({ ...prev, categories: [...prev.categories, selectedCategoryToAdd] }));
+    }
+    setSelectedCategoryToAdd('');
+  };
+
+  const handleRemoveCategoryFromContent = (catId) => {
+    setContentData(prev => ({ ...prev, categories: prev.categories.filter(id => id !== catId) }));
+  };
+
+  const handleContentSectionToggle = (section) => {
+    setContentData(prev => {
+      const sections = prev.sections.includes(section) ? prev.sections.filter(s => s !== section) : [...prev.sections, section];
+      return { ...prev, sections };
+    });
+  };
+
+  const handleContentSubmit = async (e) => {
+    e.preventDefault();
+    if (contentData.categories.length === 0) return alert('Please select at least one category.');
+
+    const type = currentView === 'movies' ? 'movie' : 'tvseries';
+    
+    // Convert comma separated cast/genres back to array if they are strings
+    const payload = {
+      ...contentData,
+      type,
+      cast: typeof contentData.cast === 'string' ? contentData.cast.split(',').map(s => s.trim()).filter(s => s) : contentData.cast,
+      genres: typeof contentData.genres === 'string' ? contentData.genres.split(',').map(s => s.trim()).filter(s => s) : contentData.genres,
+    };
+    
+    try {
+      if (contentData._id) {
+        await axios.put(import.meta.env.VITE_API_URL + `/api/admin/movie/${contentData._id}`, payload);
+        alert(`${type === 'movie' ? 'Movie' : 'TV Series'} updated successfully!`);
+      } else {
+        await axios.post(import.meta.env.VITE_API_URL + '/api/admin/movie', payload);
+        alert(`${type === 'movie' ? 'Movie' : 'TV Series'} added successfully!`);
+      }
+      setIsModalOpen(false);
+      fetchMovies();
+    } catch (err) {
+      alert('Error saving content.');
+    }
+  };
+
+  const handleEditContent = (item) => {
+    // Populate form data, converting arrays back to comma-separated strings for inputs
+    setContentData({
+      ...item,
+      categories: item.categories.map(c => typeof c === 'object' ? c._id : c),
+      cast: Array.isArray(item.cast) ? item.cast.join(', ') : item.cast,
+      genres: Array.isArray(item.genres) ? item.genres.join(', ') : item.genres,
+    });
+    setIsModalOpen(true);
+  };
+
+  const handleDuplicateContent = (item) => {
+    setContentData({
+      ...item,
+      _id: undefined, // Remove ID so it creates a new entry
+      title: item.title + ' (Copy)',
+      categories: item.categories.map(c => typeof c === 'object' ? c._id : c),
+      cast: Array.isArray(item.cast) ? item.cast.join(', ') : item.cast,
+      genres: Array.isArray(item.genres) ? item.genres.join(', ') : item.genres,
+    });
+    setIsModalOpen(true);
+  };
+
+  const handleDeleteContent = async (id) => {
+    if (!window.confirm('Delete this item?')) return;
+    try {
+      await axios.delete(import.meta.env.VITE_API_URL + `/api/admin/movie/${id}`);
+      fetchMovies();
+    } catch (err) { alert('Error deleting item'); }
+  };
+
+  // --- Banner Form Handlers ---
+  const handleBannerPageToggle = (page) => {
+    setBannerData(prev => {
+      const pages = prev.pages?.includes(page) ? prev.pages.filter(p => p !== page) : [...(prev.pages || []), page];
+      return { ...prev, pages };
+    });
+  };
+
+  const handleBannerSubmit = async (e) => {
+    e.preventDefault();
+    if (!bannerData.movie) return alert('Please select a movie/series for the banner.');
+    if (!bannerData.pages || bannerData.pages.length === 0) return alert('Please select at least one page.');
+    
+    // Ensure movie is just the ID if it's an object (populated)
+    const payload = { ...bannerData, movie: typeof bannerData.movie === 'object' ? bannerData.movie._id : bannerData.movie };
+    
+    try {
+      if (bannerData._id) {
+        await axios.put(import.meta.env.VITE_API_URL + `/api/admin/banner/${bannerData._id}`, payload);
+        alert('Banner updated successfully!');
+      } else {
+        await axios.post(import.meta.env.VITE_API_URL + '/api/admin/banner', payload);
+        alert('Banner saved successfully!');
+      }
+      setIsBannerModalOpen(false);
+      fetchBanners();
+    } catch (err) { alert('Error saving banner.'); }
+  };
+
+  const handleDeleteBanner = async (id) => {
+    if (!window.confirm('Delete this banner?')) return;
+    try {
+      await axios.delete(import.meta.env.VITE_API_URL + `/api/admin/banner/${id}`);
+      fetchBanners();
+    } catch (err) { alert('Error deleting banner'); }
+  };
+  const displayList = currentView === 'movies' ? movies.filter(m => m.type === 'movie') : movies.filter(m => m.type === 'tvseries');
+
+  return (
+    <div className="h-screen overflow-hidden bg-[#0f0f0f] text-white flex">
+      
+      {/* Sidebar */}
+      <aside className="w-64 bg-[#141414] border-r border-gray-800 flex flex-col pt-6 h-screen shrink-0">
+        <div className="px-6 mb-10">
+          <h1 className="text-[#E50914] text-xl font-black uppercase tracking-wider drop-shadow-md">MY MOVIE HUB</h1>
+        </div>
+        <h2 className="text-gray-500 text-xs font-bold uppercase tracking-wider px-6 mb-4">Admin Menu</h2>
+        <nav className="flex-1 flex flex-col gap-1">
+          <div onClick={() => setCurrentView('categories')} className={`flex items-center gap-3 px-6 py-3 cursor-pointer transition ${currentView === 'categories' ? 'bg-red-600/10 border-r-4 border-red-600 text-red-500 font-medium' : 'text-gray-400 hover:text-gray-200 hover:bg-[#222]'}`}>
+            <FaLayerGroup /> Categories
+          </div>
+          <div onClick={() => setCurrentView('movies')} className={`flex items-center gap-3 px-6 py-3 cursor-pointer transition ${currentView === 'movies' ? 'bg-red-600/10 border-r-4 border-red-600 text-red-500 font-medium' : 'text-gray-400 hover:text-gray-200 hover:bg-[#222]'}`}>
+            <FaFilm /> Movies
+          </div>
+          <div onClick={() => setCurrentView('series')} className={`flex items-center gap-3 px-6 py-3 cursor-pointer transition ${currentView === 'series' ? 'bg-red-600/10 border-r-4 border-red-600 text-red-500 font-medium' : 'text-gray-400 hover:text-gray-200 hover:bg-[#222]'}`}>
+            <FaTv /> TV Series
+          </div>
+          <div onClick={() => setCurrentView('banners')} className={`flex items-center gap-3 px-6 py-3 cursor-pointer transition ${currentView === 'banners' ? 'bg-red-600/10 border-r-4 border-red-600 text-red-500 font-medium' : 'text-gray-400 hover:text-gray-200 hover:bg-[#222]'}`}>
+            <FaImage /> Banners
+          </div>
+          <div onClick={() => setCurrentView('notice')} className={`flex items-center gap-3 px-6 py-3 cursor-pointer transition ${currentView === 'notice' ? 'bg-red-600/10 border-r-4 border-red-600 text-red-500 font-medium' : 'text-gray-400 hover:text-gray-200 hover:bg-[#222]'}`}>
+            <FaLayerGroup /> Notice
+          </div>
+          <div onClick={() => setCurrentView('users')} className={`flex items-center gap-3 px-6 py-3 cursor-pointer transition ${currentView === 'users' ? 'bg-red-600/10 border-r-4 border-red-600 text-red-500 font-medium' : 'text-gray-400 hover:text-gray-200 hover:bg-[#222]'}`}>
+            <FaUserCircle /> Users
+          </div>
+        </nav>
+        
+        <div className="p-6 border-t border-gray-800">
+          <button 
+            onClick={logout} 
+            className="flex items-center gap-3 text-gray-400 hover:text-white transition w-full"
+          >
+            <FaSignOutAlt /> Logout
+          </button>
+        </div>
+      </aside>
+
+      {/* Main Content */}
+      <main className="flex-1 p-8 md:p-12 overflow-y-auto h-screen relative">
+        
+        {/* ======================= CATEGORIES VIEW ======================= */}
+        {currentView === 'categories' && (
+          <div className="max-w-4xl">
+            <h1 className="text-3xl font-bold mb-2">Manage Categories</h1>
+            <p className="text-gray-400 mb-8">Create categories and choose where they should appear.</p>
+            
+            <div className="mb-10">
+              <button 
+                onClick={() => {
+                  setCategoryIdToEdit(null);
+                  setCatName('');
+                  setCatSections([]);
+                  setIsCatLargeRow(false);
+                  setIsCategoryModalOpen(true);
+                }} 
+                className="bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-6 rounded shadow-lg flex items-center gap-2"
+              >
+                <FaPlus /> Create New Category
+              </button>
+            </div>
+
+            <h2 className="text-2xl font-semibold mb-6">Existing Categories</h2>
+            <div className="bg-[#181818] border border-gray-800 rounded-lg overflow-hidden">
+              <div className="flex border-b border-gray-800">
+                {['home', 'movie', 'tvseries'].map(tab => (
+                  <button key={tab} onClick={() => setActiveCategoryTab(tab)} className={`flex-1 py-4 font-bold capitalize ${activeCategoryTab === tab ? 'bg-red-600/10 text-red-500 border-b-2 border-red-500' : 'text-gray-400 hover:bg-[#222]'}`}>
+                    {tab === 'tvseries' ? 'TV Series' : tab} Section
+                  </button>
+                ))}
+              </div>
+              <div className="p-6">
+                {(() => {
+                  const visibleCategories = categories.filter(c => c.sections && c.sections.includes(activeCategoryTab));
+                  if (visibleCategories.length === 0) return <p className="text-gray-500 italic py-4 text-center">No categories here.</p>;
+                  return (
+                    <ul className="space-y-3">
+                      {visibleCategories.map(cat => (
+                        <li key={cat._id} className="bg-[#222] p-4 rounded border border-gray-700 font-medium flex justify-between items-center group">
+                          <span>{cat.name}</span>
+                          <div className="flex gap-3 opacity-0 group-hover:opacity-100 transition">
+                            <button onClick={() => handleEditCategory(cat)} className="text-blue-500 hover:text-blue-400"><FaEdit /></button>
+                            <button onClick={() => handleDeleteCategory(cat._id)} className="text-red-500 hover:text-red-400"><FaTrash /></button>
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+                  );
+                })()}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ======================= MOVIES / SERIES LIST VIEW ======================= */}
+        {(currentView === 'movies' || currentView === 'series') && (
+          <div className="max-w-6xl">
+            <div className="flex justify-between items-center mb-8">
+              <div>
+                <h1 className="text-3xl font-bold mb-2">Manage {currentView === 'movies' ? 'Movies' : 'TV Series'}</h1>
+                <p className="text-gray-400">View, edit, or delete existing content.</p>
+              </div>
+              <button onClick={openModal} className="bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-6 rounded shadow-lg flex items-center gap-2">
+                <FaPlus /> Add {currentView === 'movies' ? 'Movie' : 'Series'}
+              </button>
+            </div>
+
+            {/* List Table */}
+            <div className="bg-[#181818] border border-gray-800 rounded-lg overflow-hidden shadow-lg">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="bg-[#222] border-b border-gray-800">
+                    <th className="p-4 text-gray-400 font-semibold">Title</th>
+                    <th className="p-4 text-gray-400 font-semibold">Year</th>
+                    <th className="p-4 text-gray-400 font-semibold">Categories</th>
+                    <th className="p-4 text-gray-400 font-semibold text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {displayList.length === 0 ? (
+                    <tr>
+                      <td colSpan="4" className="p-8 text-center text-gray-500 italic">No items found. Click 'Add {currentView === 'movies' ? 'Movie' : 'Series'}' to create one.</td>
+                    </tr>
+                  ) : (
+                    displayList.map(item => (
+                      <tr key={item._id} className="border-b border-gray-800 hover:bg-[#1a1a1a]">
+                        <td className="p-4 font-bold">{item.title}</td>
+                        <td className="p-4 text-gray-300">{item.year}</td>
+                        <td className="p-4 text-sm text-gray-400">
+                          {item.categories.map(c => c.name).join(', ')}
+                        </td>
+                        <td className="p-4 text-right">
+                          <button onClick={() => handleDuplicateContent(item)} className="text-green-500 hover:text-green-400 mr-4" title="Duplicate"><FaCopy size={18} /></button>
+                          <button onClick={() => handleEditContent(item)} className="text-blue-500 hover:text-blue-400 mr-4" title="Edit"><FaEdit size={18} /></button>
+                          <button onClick={() => handleDeleteContent(item._id)} className="text-red-500 hover:text-red-400" title="Delete"><FaTrash size={18} /></button>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* ======================= BANNERS VIEW ======================= */}
+        {currentView === 'banners' && (
+          <div className="max-w-6xl">
+            <div className="flex justify-between items-center mb-8">
+              <div>
+                <h1 className="text-3xl font-bold mb-2">Manage Banners</h1>
+                <p className="text-gray-400">Set the Hero banners for Home, Movies, and TV Series pages.</p>
+              </div>
+              <button onClick={() => { setBannerData(initialBannerState); setIsBannerModalOpen(true); }} className="bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-6 rounded shadow-lg flex items-center gap-2">
+                <FaPlus /> Create Banner
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {['home', 'movies', 'tvseries'].map(page => {
+                const pageBanner = banners.find(b => b.pages && b.pages.includes(page));
+                return (
+                  <div key={page} className="bg-[#181818] border border-gray-800 rounded-lg overflow-hidden shadow-lg flex flex-col">
+                    <div className="p-4 bg-[#222] border-b border-gray-800 flex justify-between items-center">
+                      <h3 className="font-bold uppercase tracking-wider">{page === 'tvseries' ? 'TV Series' : page} Page</h3>
+                      {pageBanner && (
+                        <div className="flex gap-3">
+                          <button onClick={() => { setBannerData(pageBanner); setIsBannerModalOpen(true); }} className="text-blue-500 hover:text-blue-400"><FaEdit /></button>
+                          <button onClick={() => handleDeleteBanner(pageBanner._id)} className="text-red-500 hover:text-red-400"><FaTrash /></button>
+                        </div>
+                      )}
+                    </div>
+                    {pageBanner ? (
+                      <div className="p-4">
+                        <div className="h-32 bg-gray-800 rounded mb-4 overflow-hidden relative">
+                           {pageBanner.bgImage && <img src={getDriveDirectLink(pageBanner.bgImage)} alt="Banner" className="w-full h-full object-cover opacity-50" />}
+                           <div className="absolute bottom-2 left-2 right-2">
+                             <h4 className="font-black text-xl text-white truncate">{pageBanner.title}</h4>
+                           </div>
+                        </div>
+                        <p className="text-xs text-gray-400 mb-2 truncate">{pageBanner.subtitle}</p>
+                        <p className="text-xs text-gray-500 truncate">Linked to: {pageBanner.movie?.title || 'Unknown'}</p>
+                      </div>
+                    ) : (
+                      <div className="p-10 text-center text-gray-600 flex-1 flex flex-col justify-center">
+                        <p className="italic">No banner set.</p>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+        {/* ======================= NOTICE VIEW ======================= */}
+        {currentView === 'notice' && (
+          <div className="max-w-4xl">
+            <h1 className="text-3xl font-bold mb-2">Important Note</h1>
+            <p className="text-gray-400 mb-8">Manage the global important note that appears on your pages.</p>
+            
+            <form onSubmit={handleSaveNotice} className="bg-[#1f1f1f] p-6 rounded border border-gray-700">
+                <div className="mb-4">
+                  <label className="block text-sm font-bold text-gray-400 mb-2">Enable Note</label>
+                  <label className="flex items-center cursor-pointer">
+                    <input 
+                      type="checkbox" 
+                      className="sr-only peer"
+                      checked={notice.isActive}
+                      onChange={e => setNotice({...notice, isActive: e.target.checked})}
+                    />
+                    <div className="w-11 h-6 bg-gray-600 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-red-600 relative"></div>
+                    <span className="ml-3 text-sm font-medium text-gray-300">
+                      {notice.isActive ? 'Active (Visible on site)' : 'Inactive (Hidden)'}
+                    </span>
+                  </label>
+                </div>
+                
+                <div className="mb-4">
+                  <label className="block text-sm font-bold text-gray-400 mb-2">Title</label>
+                  <input type="text" value={notice.title} onChange={e => setNotice({...notice, title: e.target.value})} className="w-full bg-[#111] border border-gray-700 rounded p-3 text-white focus:border-red-500" placeholder="e.g. Important Note" required />
+                </div>
+                
+                <div className="mb-4">
+                  <label className="block text-sm font-bold text-gray-400 mb-2">Message</label>
+                  <textarea value={notice.message} onChange={e => setNotice({...notice, message: e.target.value})} className="w-full bg-[#111] border border-gray-700 rounded p-3 h-24 text-white focus:border-red-500" placeholder="Your note here..." required></textarea>
+                </div>
+                
+                <div className="mb-4">
+                  <label className="flex items-center gap-2 mb-2">
+                    <input type="checkbox" checked={notice.showTelegramButton} onChange={e => setNotice({...notice, showTelegramButton: e.target.checked})} />
+                    <span className="text-sm font-bold text-gray-400">Show Telegram Button</span>
+                  </label>
+                  {notice.showTelegramButton && (
+                    <input type="text" value={notice.telegramLink} onChange={e => setNotice({...notice, telegramLink: e.target.value})} className="w-full bg-[#111] border border-gray-700 rounded p-3 text-white focus:border-red-500" placeholder="https://t.me/yourchannel" required />
+                  )}
+                </div>
+                
+                <button type="submit" className="bg-red-600 text-white font-bold py-3 px-8 rounded mt-4 hover:bg-red-700 transition">
+                  Save Note
+                </button>
+              </form>
+          </div>
+        )}
+
+        {/* ======================= USERS VIEW ======================= */}
+        {currentView === 'users' && (
+          <div className="max-w-6xl">
+            <h1 className="text-3xl font-bold mb-2">Registered Users</h1>
+            <p className="text-gray-400 mb-8">View all users who have logged in via Google.</p>
+            
+            <div className="bg-[#181818] border border-gray-800 rounded-lg overflow-hidden shadow-lg">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="bg-[#222] border-b border-gray-800">
+                    <th className="p-4 text-gray-400 font-semibold w-16">Profile</th>
+                    <th className="p-4 text-gray-400 font-semibold">Name</th>
+                    <th className="p-4 text-gray-400 font-semibold">Email</th>
+                    <th className="p-4 text-gray-400 font-semibold">Joined At</th>
+                    <th className="p-4 text-gray-400 font-semibold">Last Login</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {users.length === 0 ? (
+                    <tr>
+                      <td colSpan="5" className="p-8 text-center text-gray-500 italic">No users found.</td>
+                    </tr>
+                  ) : (
+                    users.map(user => (
+                      <tr key={user._id} className="border-b border-gray-800 hover:bg-[#1a1a1a]">
+                        <td className="p-4">
+                          <div className="w-10 h-10 rounded-full bg-red-600 flex items-center justify-center text-white font-bold text-lg uppercase shadow-lg">
+                            {(user.displayName || user.email || '?').charAt(0)}
+                          </div>
+                        </td>
+                        <td className="p-4 font-bold text-gray-200">{user.displayName || 'N/A'}</td>
+                        <td className="p-4 text-gray-400">{user.email}</td>
+                        <td className="p-4 text-gray-400">{new Date(user.createdAt).toLocaleDateString()}</td>
+                        <td className="p-4 text-gray-400">{new Date(user.lastLogin).toLocaleString()}</td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+      </main>
+
+      {/* ======================= CREATE CONTENT MODAL ======================= */}
+      {isModalOpen && (
+        <div className="fixed inset-0 z-[100] flex justify-center items-center bg-black/80 backdrop-blur-sm p-4">
+          <div className="w-full max-w-4xl bg-[#141414] max-h-[95vh] rounded-xl shadow-2xl flex flex-col border border-gray-800 overflow-hidden">
+            
+            {/* Modal Header */}
+            <div className="flex justify-between items-center p-6 border-b border-gray-800 bg-[#181818]">
+              <h2 className="text-2xl font-bold">
+                {contentData._id ? 'Edit' : 'Add New'} {currentView === 'movies' ? 'Movie' : 'TV Series'}
+              </h2>
+              <button onClick={() => setIsModalOpen(false)} className="text-gray-400 hover:text-white bg-[#222] p-2 rounded-full">
+                <FaTimes size={20} />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="flex-1 overflow-y-auto p-8">
+              <form id="content-form" onSubmit={handleContentSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-6 pb-20">
+                
+                {/* Category Assignment */}
+                <div className="md:col-span-2 bg-[#1f1f1f] p-5 rounded border border-gray-700">
+                  <h3 className="text-lg font-bold mb-4 text-red-500 flex items-center gap-2"><FaLayerGroup /> Assign to Categories</h3>
+                  <div className="flex gap-4 items-end mb-4">
+                    <div className="flex-1">
+                      <label className="block text-sm font-bold text-gray-400 mb-2">Select Category</label>
+                      <select value={selectedCategoryToAdd} onChange={e => setSelectedCategoryToAdd(e.target.value)} className="w-full bg-[#111] border border-gray-600 rounded p-3 text-white">
+                        <option value="">-- Choose a Category --</option>
+                        {categories.map(cat => (
+                          <option key={cat._id} value={cat._id}>{cat.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <button type="button" onClick={handleAddCategoryToContent} className="bg-zinc-700 hover:bg-zinc-600 text-white font-bold p-3 px-6 rounded flex items-center gap-2 h-[50px]">
+                      <FaPlus /> Add
+                    </button>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {contentData.categories.length === 0 && <span className="text-gray-500 text-sm italic">No categories added yet.</span>}
+                    {contentData.categories.map(catId => {
+                      const catObj = categories.find(c => c._id === catId);
+                      if (!catObj) return null;
+                      return (
+                        <div key={catId} className="bg-red-600/20 border border-red-500/50 text-red-100 px-3 py-1.5 rounded-full flex items-center gap-2 text-sm">
+                          {catObj.name}
+                          <FaTimes className="cursor-pointer text-red-400 hover:text-white" onClick={() => handleRemoveCategoryFromContent(catId)} />
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Removed 'Show on Pages' section as requested */}
+
+                <div className="md:col-span-2 border-t border-gray-800 pt-4 mt-2"><h3 className="text-lg font-bold text-white">General Info</h3></div>
+
+                <div>
+                  <label className="block text-sm font-bold text-gray-400 mb-2">Title</label>
+                  <input type="text" value={contentData.title} onChange={e => setContentData({...contentData, title: e.target.value})} className="w-full bg-[#111] border border-gray-700 rounded p-3" required />
+                </div>
+                <div>
+                  <label className="block text-sm font-bold text-gray-400 mb-2">Description</label>
+                  <textarea rows="1" value={contentData.description} onChange={e => setContentData({...contentData, description: e.target.value})} className="w-full bg-[#111] border border-gray-700 rounded p-3" required />
+                </div>
+                <div>
+                  <label className="block text-sm font-bold text-gray-400 mb-2">Year</label>
+                  <input type="number" value={contentData.year} onChange={e => setContentData({...contentData, year: e.target.value})} className="w-full bg-[#111] border border-gray-700 rounded p-3" required />
+                </div>
+                <div>
+                  <label className="block text-sm font-bold text-gray-400 mb-2">Duration / Seasons</label>
+                  <input type="text" value={contentData.durationOrSeasons} onChange={e => setContentData({...contentData, durationOrSeasons: e.target.value})} className="w-full bg-[#111] border border-gray-700 rounded p-3" required />
+                </div>
+                <div>
+                  <label className="block text-sm font-bold text-gray-400 mb-2">Age Rating</label>
+                  <input type="text" placeholder="e.g. U/A 16+, A, U" value={contentData.ageRating || ''} onChange={e => setContentData({...contentData, ageRating: e.target.value})} className="w-full bg-[#111] border border-gray-700 rounded p-3" />
+                </div>
+                <div>
+                  <label className="block text-sm font-bold text-gray-400 mb-2">Director</label>
+                  <input type="text" value={contentData.director || ''} onChange={e => setContentData({...contentData, director: e.target.value})} className="w-full bg-[#111] border border-gray-700 rounded p-3" />
+                </div>
+                <div>
+                  <label className="block text-sm font-bold text-gray-400 mb-2">Writer</label>
+                  <input type="text" value={contentData.writer || ''} onChange={e => setContentData({...contentData, writer: e.target.value})} className="w-full bg-[#111] border border-gray-700 rounded p-3" />
+                </div>
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-bold text-gray-400 mb-2">Cast (comma separated)</label>
+                  <input type="text" value={contentData.cast} onChange={e => setContentData({...contentData, cast: e.target.value})} className="w-full bg-[#111] border border-gray-700 rounded p-3" />
+                </div>
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-bold text-gray-400 mb-2">Genres (comma separated)</label>
+                  <input type="text" value={contentData.genres} onChange={e => setContentData({...contentData, genres: e.target.value})} className="w-full bg-[#111] border border-gray-700 rounded p-3" />
+                </div>
+
+                {/* Google Drive Attachments */}
+                <div className="md:col-span-2 border-t border-gray-800 pt-6 mt-4">
+                  <h3 className="text-xl font-bold mb-2 text-blue-400">Google Drive Attachments (Public Links)</h3>
+                  <p className="text-sm text-gray-400 mb-6">Apne Google Drive se file ka 'Copy Link' karein aur yahan paste kar dein (Folder public hona chahiye).</p>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div>
+                      <label className="block text-sm font-bold text-gray-300 mb-2">Video File Link</label>
+                      <input 
+                        type="text" 
+                        placeholder="https://drive.google.com/file/d/..."
+                        value={contentData.driveVideoId} 
+                        onChange={e => setContentData({...contentData, driveVideoId: e.target.value})} 
+                        className="w-full bg-[#111] border border-blue-900/50 rounded p-3 text-white focus:border-blue-500" 
+                        required={contentData.type === 'movie'} 
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-bold text-gray-300 mb-2">Thumbnail Link (Hover)</label>
+                      <input type="text" placeholder="https://drive.google.com/file/d/..." value={contentData.driveImageId} onChange={e => setContentData({...contentData, driveImageId: e.target.value})} className="w-full bg-[#111] border border-blue-900/50 rounded p-3 text-white focus:border-blue-500" required />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-bold text-gray-300 mb-2">Banner Link (Top/Modal)</label>
+                      <input type="text" placeholder="https://drive.google.com/file/d/..." value={contentData.driveLargeImageId} onChange={e => setContentData({...contentData, driveLargeImageId: e.target.value})} className="w-full bg-[#111] border border-blue-900/50 rounded p-3 text-white focus:border-blue-500" />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Seasons & Episodes UI */}
+                {contentData.type === 'tvseries' && (
+                  <div className="md:col-span-2 border-t border-gray-800 pt-6 mt-4">
+                    <div className="flex justify-between items-center mb-4">
+                      <h3 className="text-xl font-bold text-green-400">Seasons & Episodes</h3>
+                      <button 
+                        type="button" 
+                        onClick={() => setContentData({
+                          ...contentData, 
+                          seasons: [...(contentData.seasons || []), { name: `Season ${(contentData.seasons?.length || 0) + 1}`, episodes: [] }]
+                        })}
+                        className="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-sm font-bold flex items-center gap-2"
+                      >
+                        <FaPlus size={10} /> Add Season
+                      </button>
+                    </div>
+                    
+                    {(contentData.seasons || []).map((season, sIdx) => (
+                      <div key={sIdx} className="bg-[#222] p-4 rounded mb-4 border border-gray-700">
+                        <div className="flex justify-between items-center mb-4">
+                          <input 
+                            type="text" 
+                            value={season.name} 
+                            onChange={(e) => {
+                              const newSeasons = [...contentData.seasons];
+                              newSeasons[sIdx].name = e.target.value;
+                              setContentData({...contentData, seasons: newSeasons});
+                            }}
+                            className="bg-[#111] border border-gray-600 rounded p-2 text-white font-bold"
+                          />
+                          <div className="flex gap-2">
+                            <button 
+                              type="button"
+                              onClick={() => {
+                                const newSeasons = [...contentData.seasons];
+                                newSeasons[sIdx].episodes.push({ title: '', duration: '', description: '', driveImageId: '', driveVideoId: '' });
+                                setContentData({...contentData, seasons: newSeasons});
+                              }}
+                              className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-xs font-bold"
+                            >
+                              + Add Episode
+                            </button>
+                            <button 
+                              type="button"
+                              onClick={() => {
+                                const newSeasons = contentData.seasons.filter((_, i) => i !== sIdx);
+                                setContentData({...contentData, seasons: newSeasons});
+                              }}
+                              className="bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded text-xs font-bold"
+                            >
+                              Delete Season
+                            </button>
+                          </div>
+                        </div>
+
+                        {season.episodes.map((ep, eIdx) => (
+                          <div key={eIdx} className="bg-[#111] p-3 rounded mb-3 border border-gray-800 grid grid-cols-1 md:grid-cols-2 gap-3 relative pr-10">
+                            <button 
+                              type="button"
+                              onClick={() => {
+                                const newSeasons = [...contentData.seasons];
+                                newSeasons[sIdx].episodes = newSeasons[sIdx].episodes.filter((_, i) => i !== eIdx);
+                                setContentData({...contentData, seasons: newSeasons});
+                              }}
+                              className="absolute right-2 top-2 bg-red-600 hover:bg-red-500 rounded w-6 h-6 flex items-center justify-center text-white"
+                            >
+                              <FaTimes size={10} />
+                            </button>
+                            <input type="text" placeholder="Episode Title" value={ep.title} onChange={e => {
+                              const newSeasons = [...contentData.seasons];
+                              newSeasons[sIdx].episodes[eIdx].title = e.target.value;
+                              setContentData({...contentData, seasons: newSeasons});
+                            }} className="bg-[#222] border border-gray-700 rounded p-2 text-sm w-full" required />
+                            
+                            <input type="text" placeholder="Duration (e.g. 45m)" value={ep.duration} onChange={e => {
+                              const newSeasons = [...contentData.seasons];
+                              newSeasons[sIdx].episodes[eIdx].duration = e.target.value;
+                              setContentData({...contentData, seasons: newSeasons});
+                            }} className="bg-[#222] border border-gray-700 rounded p-2 text-sm w-full" required />
+                            
+                            <textarea placeholder="Description" value={ep.description} onChange={e => {
+                              const newSeasons = [...contentData.seasons];
+                              newSeasons[sIdx].episodes[eIdx].description = e.target.value;
+                              setContentData({...contentData, seasons: newSeasons});
+                            }} className="bg-[#222] border border-gray-700 rounded p-2 text-sm w-full md:col-span-2" rows="2" />
+                            
+                            <input type="text" placeholder="Drive Video Link" value={ep.driveVideoId} onChange={e => {
+                              const newSeasons = [...contentData.seasons];
+                              newSeasons[sIdx].episodes[eIdx].driveVideoId = e.target.value;
+                              setContentData({...contentData, seasons: newSeasons});
+                            }} className="bg-[#222] border border-blue-900/50 rounded p-2 text-sm w-full" required />
+                            
+                            <input type="text" placeholder="Drive Image Link (Optional)" value={ep.driveImageId} onChange={e => {
+                              const newSeasons = [...contentData.seasons];
+                              newSeasons[sIdx].episodes[eIdx].driveImageId = e.target.value;
+                              setContentData({...contentData, seasons: newSeasons});
+                            }} className="bg-[#222] border border-blue-900/50 rounded p-2 text-sm w-full" />
+                          </div>
+                        ))}
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+              </form>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="p-6 border-t border-gray-800 bg-[#181818] flex justify-end gap-4">
+              <button onClick={() => setIsModalOpen(false)} className="px-6 py-3 font-bold text-gray-300 hover:text-white">Cancel</button>
+              <button form="content-form" type="submit" className="bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-10 rounded shadow-lg">Save</button>
+            </div>
+
+          </div>
+        </div>
+      )}
+
+      {/* ======================= CATEGORY MODAL ======================= */}
+      {isCategoryModalOpen && (
+        <div className="fixed inset-0 z-[100] flex justify-center items-center bg-black/80 backdrop-blur-sm p-4">
+          <div className="w-full max-w-2xl bg-[#181818] rounded-xl shadow-2xl flex flex-col border border-gray-800 overflow-hidden">
+            <div className="flex justify-between items-center p-6 border-b border-gray-800 bg-[#222]">
+              <h2 className="text-xl font-bold flex items-center gap-2">
+                <FaLayerGroup className="text-red-600" /> {categoryIdToEdit ? 'Edit Category' : 'Create New Category'}
+              </h2>
+              <button onClick={() => setIsCategoryModalOpen(false)} className="text-gray-400 hover:text-white"><FaTimes size={20} /></button>
+            </div>
+            
+            <div className="p-6 overflow-y-auto max-h-[70vh]">
+              <form onSubmit={handleAddCategory}>
+                <div className="mb-6">
+                  <label className="block text-sm font-bold text-gray-400 mb-2">Category Name</label>
+                  <input type="text" placeholder="e.g. Action Movies..." value={catName} onChange={e => setCatName(e.target.value)} className="w-full bg-[#222] border border-gray-700 rounded p-3 text-white focus:border-red-500" required />
+                </div>
+                
+                <div className="mb-8">
+                  <label className="block text-sm font-bold text-gray-400 mb-3">Show this category in:</label>
+                  <div className="flex flex-wrap gap-6">
+                    {['home', 'movie', 'tvseries'].map(sec => (
+                      <label key={sec} className="flex items-center gap-3 cursor-pointer group">
+                        <input type="checkbox" className="hidden" checked={catSections.includes(sec)} onChange={() => handleSectionToggle(sec)} />
+                        <div className={`w-5 h-5 rounded border flex items-center justify-center ${catSections.includes(sec) ? 'bg-red-600 border-red-600' : 'bg-transparent border-gray-600 group-hover:border-gray-400'}`}>
+                          {catSections.includes(sec) && <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>}
+                        </div>
+                        <span className="capitalize font-medium text-gray-300">{sec === 'tvseries' ? 'TV Series' : sec}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="mb-8">
+                  <label className="flex items-center gap-3 cursor-pointer group">
+                    <input type="checkbox" className="hidden" checked={isCatLargeRow} onChange={e => setIsCatLargeRow(e.target.checked)} />
+                    <div className={`w-5 h-5 rounded border flex items-center justify-center ${isCatLargeRow ? 'bg-blue-600 border-blue-600' : 'bg-transparent border-gray-600 group-hover:border-gray-400'}`}>
+                      {isCatLargeRow && <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>}
+                    </div>
+                    <div>
+                      <span className="font-bold text-white block">Use Numbered UI (Large Row)</span>
+                      <span className="text-xs text-gray-400">Enable this to show large numbers (1, 2, 3...) next to items (e.g. for "Top 10" sections).</span>
+                    </div>
+                  </label>
+                </div>
+
+                <div className="flex justify-end gap-4 mt-8 pt-6 border-t border-gray-800">
+                  <button type="button" onClick={() => setIsCategoryModalOpen(false)} className="px-6 py-2 font-bold text-gray-400 hover:text-white">Cancel</button>
+                  <button type="submit" className="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-8 rounded shadow-lg">
+                    {categoryIdToEdit ? 'Update Category' : 'Save Category'}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ======================= CREATE BANNER MODAL ======================= */}
+      {isBannerModalOpen && (
+        <div className="fixed inset-0 z-[100] flex justify-center items-center bg-black/80 backdrop-blur-sm">
+          <div className="w-full max-w-2xl bg-[#181818] rounded-xl shadow-2xl flex flex-col border border-gray-800 overflow-hidden">
+            <div className="flex justify-between items-center p-6 border-b border-gray-800 bg-[#222]">
+              <h2 className="text-xl font-bold">{bannerData._id ? 'Edit' : 'Create'} Banner</h2>
+              <button onClick={() => setIsBannerModalOpen(false)} className="text-gray-400 hover:text-white"><FaTimes size={20} /></button>
+            </div>
+            
+            <div className="p-6 overflow-y-auto max-h-[70vh]">
+              <form id="banner-form" onSubmit={handleBannerSubmit} className="space-y-4">
+                <div>
+                  <label className="block text-sm font-bold text-gray-400 mb-3">Show on Pages</label>
+                  <div className="flex gap-6">
+                    {['home', 'movies', 'tvseries'].map(page => (
+                      <label key={page} className="flex items-center gap-3 cursor-pointer group">
+                        <input type="checkbox" className="hidden" checked={bannerData.pages?.includes(page) || false} onChange={() => handleBannerPageToggle(page)} />
+                        <div className={`w-5 h-5 rounded border flex items-center justify-center ${bannerData.pages?.includes(page) ? 'bg-red-600 border-red-600' : 'bg-transparent border-gray-600 group-hover:border-gray-400'}`}>
+                          {bannerData.pages?.includes(page) && <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>}
+                        </div>
+                        <span className="capitalize font-medium text-gray-300">{page === 'tvseries' ? 'TV Series' : page}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-bold text-gray-400 mb-2">Link to Movie / Series</label>
+                  <select value={bannerData.movie ? (typeof bannerData.movie === 'object' ? bannerData.movie._id : bannerData.movie) : ''} onChange={e => setBannerData({...bannerData, movie: e.target.value})} className="w-full bg-[#111] border border-gray-700 rounded p-3 text-white" required>
+                    <option value="">-- Select a Movie/Series --</option>
+                    {movies.map(m => <option key={m._id} value={m._id}>{m.title}</option>)}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-bold text-gray-400 mb-2">Banner Title</label>
+                  <input type="text" value={bannerData.title} onChange={e => setBannerData({...bannerData, title: e.target.value})} className="w-full bg-[#111] border border-gray-700 rounded p-3 text-white" required />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-bold text-gray-400 mb-2">Subtitle</label>
+                  <input type="text" value={bannerData.subtitle} onChange={e => setBannerData({...bannerData, subtitle: e.target.value})} className="w-full bg-[#111] border border-gray-700 rounded p-3 text-white" required />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-bold text-gray-400 mb-2">Description</label>
+                  <textarea rows="3" value={bannerData.description} onChange={e => setBannerData({...bannerData, description: e.target.value})} className="w-full bg-[#111] border border-gray-700 rounded p-3 text-white" required />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-bold text-gray-400 mb-2">Background Image (Drive Public Link)</label>
+                  <input type="text" value={bannerData.bgImage} onChange={e => setBannerData({...bannerData, bgImage: e.target.value})} className="w-full bg-[#111] border border-gray-700 rounded p-3 text-white" required />
+                </div>
+              </form>
+            </div>
+
+            <div className="p-6 border-t border-gray-800 bg-[#222] flex justify-end gap-4">
+              <button onClick={() => setIsBannerModalOpen(false)} className="px-6 py-2 font-bold text-gray-400 hover:text-white">Cancel</button>
+              <button form="banner-form" type="submit" className="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-8 rounded">Save Banner</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+    </div>
+  );
+};
+
+export default Admin;
