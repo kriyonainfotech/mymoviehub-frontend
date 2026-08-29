@@ -3,6 +3,7 @@ import axios from 'axios';
 import Hero from '../components/Hero';
 import Row from '../components/Row';
 import NoticeBanner from '../components/NoticeBanner';
+import AdsterraAd from '../components/AdsterraAd';
 
 const TvSeries = () => {
   const [categories, setCategories] = useState([]);
@@ -37,6 +38,13 @@ const TvSeries = () => {
       
       {/* Important Note Banner */}
       <NoticeBanner />
+
+      <div className="hidden md:block">
+        <AdsterraAd width={728} height={90} adKey="3e52a7de4f64eb578996bc017ab9863c" />
+      </div>
+      <div className="md:hidden">
+        <AdsterraAd width={320} height={50} adKey="b06804870a5a3c679877784e41216b13" />
+      </div>
 
       {/* Rows */}
       <div className="-mt-4 relative z-10">
