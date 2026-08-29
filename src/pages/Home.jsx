@@ -50,12 +50,23 @@ const Home = () => {
           if (categoryMovies.length === 0) return null; // Don't show empty categories
           
           return (
-            <Row 
-              key={category._id} 
-              title={category.name} 
-              isLargeRow={category.isLargeRow}
-              movies={categoryMovies} 
-            />
+            <div key={category._id}>
+              <Row 
+                title={category.name} 
+                isLargeRow={category.isLargeRow}
+                movies={categoryMovies} 
+              />
+              {index === 1 && (
+                <div className="w-full flex justify-center my-8">
+                  <div className="w-full max-w-[300px] h-[250px] md:max-w-[728px] md:h-[90px] bg-[#1a1a1a] border border-gray-600 flex flex-col items-center justify-center rounded overflow-hidden shadow-2xl px-4">
+                    <span className="text-gray-400 text-sm mb-2">Advertisement</span>
+                    <a href="https://omg10.com/4/9048335" target="_blank" rel="noopener noreferrer" className="bg-[#E50914] text-white px-6 py-2 rounded font-bold hover:bg-red-700 transition">
+                      Click Here to Continue
+                    </a>
+                  </div>
+                </div>
+              )}
+            </div>
           );
         })}
       </div>
