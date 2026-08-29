@@ -132,16 +132,14 @@ const VideoPlayer = ({ movie, onClose }) => {
 
         {/* Video Ad Overlay (YouTube Style) */}
         {showAd && (
-          <div className="absolute inset-0 bg-black z-[100] flex items-center justify-center">
-            {/* The Ad Video */}
-            <video
-              ref={adVideoRef}
-              src="https://www.w3schools.com/html/mov_bbb.mp4"
-              className="w-full h-full object-contain"
-              autoPlay
-              muted={false}
-              onEnded={skipAd}
-            />
+          <div className="absolute inset-0 bg-black/80 backdrop-blur-sm z-[100] flex flex-col items-center justify-center">
+            {/* The Banner Ad */}
+            <div className="w-full max-w-[300px] h-[250px] md:max-w-[728px] md:h-[90px] bg-[#1a1a1a] border border-gray-600 flex flex-col items-center justify-center rounded overflow-hidden relative shadow-2xl z-[120]">
+              <span className="text-gray-400 text-sm mb-2">Advertisement</span>
+              <a href="https://omg10.com/4/9048335" target="_blank" rel="noopener noreferrer" className="bg-[#E50914] text-white px-6 py-2 rounded font-bold hover:bg-red-700 transition">
+                Click Here to Continue
+              </a>
+            </div>
             
             {/* Ad Countdown / Skip Button Overlay */}
             <div className="absolute bottom-16 right-8 z-[110]">
