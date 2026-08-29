@@ -43,20 +43,6 @@ const VideoPlayer = ({ movie, onClose }) => {
     return () => clearInterval(timer);
   }, [showAd, adTimeLeft]);
 
-  // Inject Monetag Vignette Banner when ad shows
-  useEffect(() => {
-    if (showAd) {
-      const scriptId = 'monetag-vignette';
-      if (!document.getElementById(scriptId)) {
-        const s = document.createElement('script');
-        s.id = scriptId;
-        s.dataset.zone = '9048332';
-        s.src = 'https://n6wxm.com/vignette.min.js';
-        document.body.appendChild(s);
-      }
-    }
-  }, [showAd]);
-
   const skipAd = () => {
     setShowAd(false);
   };
@@ -76,10 +62,10 @@ const VideoPlayer = ({ movie, onClose }) => {
       {/* Video Ad Overlay (YouTube Style) */}
       {showAd && (
         <div className="absolute inset-0 bg-black/80 backdrop-blur-sm z-[100] flex flex-col items-center justify-center">
-          {/* The Banner Ad (Fallback if Monetag fails) */}
+          {/* The Banner Ad */}
           <div className="w-full max-w-[300px] h-[250px] md:max-w-[728px] md:h-[90px] bg-[#1a1a1a] border border-gray-600 flex flex-col items-center justify-center rounded overflow-hidden relative shadow-2xl z-[120]">
             <span className="text-gray-400 text-sm mb-2">Advertisement</span>
-            <a href="https://omg10.com/4/9048335" target="_blank" rel="noopener noreferrer" className="bg-[#E50914] text-white px-6 py-2 rounded font-bold hover:bg-red-700 transition">
+            <a href="https://www.profitableratecpmnetwork.com/tuxrqgr8q1?key=ef6b0648714ba63c523d681e3229c280" target="_blank" rel="noopener noreferrer" className="bg-[#E50914] text-white px-6 py-2 rounded font-bold hover:bg-red-700 transition">
               Click Here to Continue
             </a>
           </div>

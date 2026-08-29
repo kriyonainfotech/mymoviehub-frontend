@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { FaPlay, FaPlus, FaThumbsUp, FaTimes, FaChevronDown } from 'react-icons/fa';
 import { getDriveDirectLink } from './Row';
 import axios from 'axios';
+import AdsterraAd from './AdsterraAd';
 
 const MovieModal = ({ movie: initialMovie, onClose, onPlay }) => {
   const [currentMovie, setCurrentMovie] = useState(initialMovie);
@@ -152,6 +153,13 @@ const MovieModal = ({ movie: initialMovie, onClose, onPlay }) => {
           </div>
         </div>
 
+        <div className="hidden md:block">
+          <AdsterraAd width={468} height={60} adKey="7ff939b21582ba490babaf3285dbddf9" />
+        </div>
+        <div className="md:hidden">
+          <AdsterraAd width={320} height={50} adKey="b06804870a5a3c679877784e41216b13" />
+        </div>
+
         {/* Episodes Section - Only show for series */}
         {currentMovie.type === 'tvseries' && currentMovie.seasons && currentMovie.seasons.length > 0 && (
           <div className="px-4 md:px-10 mt-8">
@@ -277,6 +285,8 @@ const MovieModal = ({ movie: initialMovie, onClose, onPlay }) => {
             </div>
           </div>
         </div>
+
+        <AdsterraAd width={300} height={250} adKey="d2de92205c1828fadc5fc266dc440f74" />
 
       </div>
     </div>,

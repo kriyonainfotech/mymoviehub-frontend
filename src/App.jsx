@@ -19,15 +19,15 @@ const AdManager = () => {
 
     if (isAdmin) {
       // Remove scripts if we are on admin page
-      const vignette = document.getElementById('monetag-vignette');
-      if (vignette) vignette.remove();
+      const social = document.getElementById('adsterra-social');
+      if (social) social.remove();
     } else {
-      // Inject Vignette
-      if (!document.getElementById('monetag-vignette')) {
-        const vignette = document.createElement('script');
-        vignette.id = 'monetag-vignette';
-        vignette.innerHTML = `(function(s){s.dataset.zone='9048332',s.src='https://n6wxm.com/vignette.min.js'})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement('script')))`;
-        document.head.appendChild(vignette);
+      // Inject Social Bar
+      if (!document.getElementById('adsterra-social')) {
+        const social = document.createElement('script');
+        social.id = 'adsterra-social';
+        social.src = 'https://pl25263799.profitableratecpmnetwork.com/7c/d5/1f/7cd51f3740e66c29531e70b5e90d1dfb.js';
+        document.body.appendChild(social);
       }
     }
   }, [location.pathname]);

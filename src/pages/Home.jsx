@@ -3,7 +3,9 @@ import axios from 'axios';
 import Hero from '../components/Hero';
 import Row from '../components/Row';
 import NoticeBanner from '../components/NoticeBanner';
-import MonetagBanner from '../components/MonetagBanner';
+import AdsterraAd from '../components/AdsterraAd';
+import AdsterraNative from '../components/AdsterraNative';
+import SocialBar from '../components/SocialBar';
 
 const Home = () => {
   const [categories, setCategories] = useState([]);
@@ -41,7 +43,12 @@ const Home = () => {
       {/* Important Note Banner */}
       <NoticeBanner />
 
-
+      <div className="hidden md:block">
+        <AdsterraAd width={728} height={90} adKey="3e52a7de4f64eb578996bc017ab9863c" />
+      </div>
+      <div className="md:hidden">
+        <AdsterraAd width={320} height={50} adKey="b06804870a5a3c679877784e41216b13" />
+      </div>
 
       {/* Rows */}
       <div className="-mt-4 relative z-10">
@@ -58,7 +65,10 @@ const Home = () => {
                 movies={categoryMovies} 
               />
               {index === 1 && (
-                <MonetagBanner />
+                <AdsterraAd width={300} height={250} adKey="d2de92205c1828fadc5fc266dc440f74" />
+              )}
+              {index === 3 && (
+                <AdsterraNative />
               )}
             </div>
           );

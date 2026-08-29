@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { getDriveDirectLink } from '../components/Row';
 import MovieModal from '../components/MovieModal';
 import VideoPlayer from '../components/VideoPlayer';
+import AdsterraAd from '../components/AdsterraAd';
 import { FaPlay, FaTimes, FaThumbsUp, FaChevronDown } from 'react-icons/fa';
 
 const MyList = () => {
@@ -38,6 +39,13 @@ const MyList = () => {
     <div className="pt-28 px-4 md:px-12 min-h-screen">
       <h1 className="text-3xl font-bold text-white mb-2">My WatchList</h1>
       <p className="text-green-500 font-bold mb-8">Max 32 Allow</p>
+
+      <div className="hidden md:block">
+        <AdsterraAd width={728} height={90} adKey="3e52a7de4f64eb578996bc017ab9863c" />
+      </div>
+      <div className="md:hidden">
+        <AdsterraAd width={320} height={50} adKey="b06804870a5a3c679877784e41216b13" />
+      </div>
       
       {myMovies.length === 0 ? (
         <div className="text-center mt-20">
