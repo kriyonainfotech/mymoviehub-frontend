@@ -102,84 +102,43 @@ const Row = ({ title, isLargeRow, movies }) => {
                   </span>
                 )}
                 
-                {/* Base Image */}
-                <img 
-                  src={isLargeRow ? getDriveDirectLink(movie.driveLargeImageId || movie.driveImageId) : getDriveDirectLink(movie.driveImageId)} 
-                  alt={movie.title}
-                  onClick={() => setSelectedMovie(movie)}
-                  className={`rounded-md object-cover w-full transition-transform duration-300 ${
-                    isLargeRow ? 'h-[225px] md:h-[330px] ml-6 group-hover:opacity-0' : 'h-[112px] md:h-[157px] group-hover:opacity-0'
-                  }`}
-                />
-
-                {/* Hover Card (appears on hover) */}
-                <div className="absolute top-0 left-0 w-full opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 delay-300 z-[100] transform group-hover:scale-125 bg-[#141414] rounded-md shadow-2xl origin-center pointer-events-none group-hover:pointer-events-auto border border-neutral-700/50">
+                {/* Base Image and Overlays */}
+                <div className="relative w-full h-full">
                   <img 
-                    src={getDriveDirectLink(movie.driveImageId)} 
+                    src={isLargeRow ? getDriveDirectLink(movie.driveLargeImageId || movie.driveImageId) : getDriveDirectLink(movie.driveImageId)} 
                     alt={movie.title}
                     onClick={() => setSelectedMovie(movie)}
-                    className={`rounded-t-md object-cover w-full ${isLargeRow ? 'h-[150px]' : 'h-[112px] md:h-[157px]'}`}
+                    className={`rounded-md object-cover w-full transition-transform duration-300 ${isLargeRow ? 'h-[225px] md:h-[330px] ml-6' : 'h-[112px] md:h-[157px]'}`}
                   />
                   
-                  <div className="p-4 bg-[#141414] rounded-b-md">
-                    <div className="flex justify-between items-center mb-3">
-                      <div className="flex gap-2">
-                        <button 
-                          onClick={(e) => { 
-                            e.stopPropagation(); 
-                            if (movie.type === 'tvseries' && movie.seasons?.[0]?.episodes?.[0] && !movie.driveVideoId) {
-                              setPlayingMovie(movie.seasons[0].episodes[0]);
-                            } else {
-                              setPlayingMovie(movie);
-                            }
-                          }} 
-                          className="bg-white text-black w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-300 transition shadow-md"
-                        >
-                          <FaPlay size={12} className="ml-1" />
-                        </button>
-                        <button onClick={(e) => handleAddToList(e, movie)} className="border-2 border-neutral-400 text-white w-8 h-8 flex items-center justify-center rounded-full hover:border-white hover:bg-white/20 transition shadow-md">
-                          <FaPlus size={12} />
-                        </button>
-                        <button onClick={(e) => {
-                          e.stopPropagation();
-                          const currentLiked = JSON.parse(localStorage.getItem('likedMovies')) || [];
-                          if (!currentLiked.find(m => m._id === movie._id)) {
-                            localStorage.setItem('likedMovies', JSON.stringify([...currentLiked, movie]));
-                            alert(`You liked ${movie.title}!`);
-                          } else {
-                            alert(`${movie.title} is already in your Liked Movies.`);
-                          }
-                        }} className="border-2 border-neutral-400 text-white w-8 h-8 flex items-center justify-center rounded-full hover:border-white hover:bg-white/20 transition shadow-md">
-                          <FaThumbsUp size={12} />
-                        </button>
-                      </div>
-                      <button 
-                        onClick={() => setSelectedMovie(movie)}
-                        className="border-2 border-neutral-400 text-white p-2 rounded-full hover:border-white transition shadow-md"
-                      >
-                        <FaChevronDown size={14} />
-                      </button>
+                  {/* Rating Badge */}
+                  {movie.rating && (
+                    <div className={`absolute top-2 right-2 bg-black/70 border border-yellow-500/50 text-yellow-500 text-[10px] md:text-xs font-bold px-1.5 py-0.5 rounded flex items-center gap-1 z-10 ${isLargeRow ? 'mr-[-24px]' : ''}`}>
+                      <span>★</span>
+                      <span>{movie.rating}</span>
                     </div>
-                    
-                    <div className="flex items-center gap-2 text-xs font-bold mb-2">
-                      {movie.ageRating && <span className="border border-neutral-500 px-1 rounded text-neutral-300">{movie.ageRating}</span>}
-                      <span className="text-neutral-300">{movie.durationOrSeasons}</span>
-                      <span className="border border-neutral-500 px-1 rounded text-[10px] text-neutral-300">HD</span>
-                    </div>
-                    
-                    <div className="flex items-center gap-2 text-xs text-neutral-400">
-                      {movie.genres && movie.genres.slice(0, 3).map((genre, idx) => (
-                        <div key={idx} className="flex items-center gap-2">
-                          <span>{genre}</span>
-                          {idx < Math.min(movie.genres.length, 3) - 1 && <span className="w-1 h-1 bg-neutral-500 rounded-full"></span>}
-                        </div>
-                      ))}
-                    </div>
+                  )}
+
+                  {/* Desktop Hover Overlay (Hidden on sm/md) */}
+                  <div className={`hidden lg:flex absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 z-20 flex-col justify-end p-4 rounded-md ${isLargeRow ? 'ml-6' : ''}`}>
+                    <button 
+                      onClick={(e) => { 
+                        e.stopPropagation(); 
+                        if (movie.type === 'tvseries' && movie.seasons?.[0]?.episodes?.[0] && !movie.driveVideoId) {
+                          setPlayingMovie(movie.seasons[0].episodes[0]);
+                        } else {
+                          setPlayingMovie(movie);
+                        }
+                      }} 
+                      className="bg-white text-black w-10 h-10 flex items-center justify-center rounded-full hover:bg-gray-300 transition shadow-md mb-2"
+                    >
+                      <FaPlay size={12} className="ml-1" />
+                    </button>
+                    <h3 className="text-white font-bold text-sm md:text-base leading-tight truncate">{movie.title}</h3>
+                    <p className="text-neutral-300 text-xs md:text-sm mt-1">{movie.year || movie.releaseYear || ''}</p>
                   </div>
                 </div>
               </div>
-
-
               </React.Fragment>
             ))}
           </div>
