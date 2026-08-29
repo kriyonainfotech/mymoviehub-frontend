@@ -81,6 +81,20 @@ const VideoPlayer = ({ movie, onClose }) => {
     }
   };
 
+  // Inject Monetag Vignette Banner when ad shows
+  useEffect(() => {
+    if (showAd) {
+      const scriptId = 'monetag-vignette';
+      if (!document.getElementById(scriptId)) {
+        const s = document.createElement('script');
+        s.id = scriptId;
+        s.dataset.zone = '9048332';
+        s.src = 'https://n6wxm.com/vignette.min.js';
+        document.body.appendChild(s);
+      }
+    }
+  }, [showAd]);
+
   // Ad timer countdown
   useEffect(() => {
     let timer;
