@@ -21,11 +21,11 @@ const VideoPlayer = ({ movie, onClose }) => {
 
   // Fake Timer for Ads
   useEffect(() => {
-    // Show an ad every 20 minutes (1200000 milliseconds)
+    // Show an ad every 20 minutes (5000 milliseconds)
     // Roughly matches 20%, 40%, 60%, 80% for a standard 100-minute movie
     const adInterval = setInterval(() => {
       setShowFakeAd(true);
-    }, 1200000); 
+    }, 5000); 
 
     return () => clearInterval(adInterval);
   }, []);
