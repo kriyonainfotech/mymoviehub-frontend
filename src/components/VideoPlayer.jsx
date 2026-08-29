@@ -108,7 +108,6 @@ const VideoPlayer = ({ movie, onClose }) => {
           <iframe 
             src={movie.driveVideoId.replace('/view', '/preview') + (movie.driveVideoId.includes('?') ? '&autoplay=1' : '?autoplay=1')} 
             className="border-0 w-full h-full"
-            style={{ maxWidth: '177.78vh', maxHeight: '56.25vw' }}
             allow="autoplay; fullscreen"
             allowFullScreen
           ></iframe>
