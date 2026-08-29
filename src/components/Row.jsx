@@ -120,7 +120,10 @@ const Row = ({ title, isLargeRow, movies }) => {
                   )}
 
                   {/* Desktop Hover Overlay (Hidden on sm/md) */}
-                  <div className={`hidden lg:flex absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 z-20 flex-col justify-end p-4 rounded-md ${isLargeRow ? 'ml-6' : ''}`}>
+                  <div 
+                    onClick={() => setSelectedMovie(movie)}
+                    className={`hidden lg:flex absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 z-20 flex-col justify-end p-4 rounded-md cursor-pointer ${isLargeRow ? 'ml-6' : ''}`}
+                  >
                     <button 
                       onClick={(e) => { 
                         e.stopPropagation(); 
