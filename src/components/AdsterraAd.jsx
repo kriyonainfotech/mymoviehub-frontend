@@ -1,37 +1,40 @@
-import { useEffect, useRef } from 'react';
+import React from 'react';
 
 const AdsterraAd = ({ width, height, adKey }) => {
-  const containerRef = useRef(null);
-
-  useEffect(() => {
-    // Only inject once
-    if (containerRef.current && containerRef.current.children.length === 0) {
-      // 1. Set global options for this specific ad (may have race condition if many load instantly, but usually fine)
-      const confScript = document.createElement('script');
-      confScript.type = 'text/javascript';
-      confScript.innerHTML = `
-        atOptions = {
-          'key' : '${adKey}',
-          'format' : 'iframe',
-          'height' : ${height},
-          'width' : ${width},
-          'params' : {}
-        };
-      `;
-      
-      // 2. Load the invoke script
-      const invokeScript = document.createElement('script');
-      invokeScript.type = 'text/javascript';
-      invokeScript.src = `https://www.highrevenueformat.com/${adKey}/invoke.js`;
-      
-      containerRef.current.appendChild(confScript);
-      containerRef.current.appendChild(invokeScript);
-    }
-  }, [adKey, width, height]);
+  const htmlContent = `
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <style>
+          body { margin: 0; padding: 0; display: flex; justify-content: center; align-items: center; background: transparent; }
+        </style>
+      </head>
+      <body>
+        <script type="text/javascript">
+          atOptions = {
+            'key' : '${adKey}',
+            'format' : 'iframe',
+            'height' : ${height},
+            'width' : ${width},
+            'params' : {}
+          };
+        </script>
+        <script type="text/javascript" src="https://www.highrevenueformat.com/${adKey}/invoke.js"></script>
+      </body>
+    </html>
+  `;
 
   return (
-    <div className="w-full flex justify-center items-center my-4 overflow-hidden">
-      <div ref={containerRef} style={{ width: `${width}px`, height: `${height}px`, minWidth: `${width}px`, minHeight: `${height}px` }} />
+    <div className="w-full flex justify-center items-center my-4">
+      <iframe
+        srcDoc={htmlContent}
+        width={width}
+        height={height}
+        frameBorder="0"
+        scrolling="no"
+        sandbox="allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox allow-top-navigation-by-user-activation"
+        style={{ border: 'none', overflow: 'hidden' }}
+      ></iframe>
     </div>
   );
 };
