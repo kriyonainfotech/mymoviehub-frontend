@@ -119,10 +119,10 @@ const Row = ({ title, isLargeRow, movies }) => {
                     </div>
                   )}
 
-                  {/* Desktop Hover Overlay (Hidden on sm/md) */}
+                  {/* Always Visible Details Overlay */}
                   <div 
                     onClick={() => setSelectedMovie(movie)}
-                    className={`hidden lg:flex absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 z-20 flex-col justify-end p-4 rounded-md cursor-pointer ${isLargeRow ? 'ml-6' : ''}`}
+                    className={`flex absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent z-20 flex-col justify-end p-2 md:p-4 rounded-md cursor-pointer ${isLargeRow ? 'ml-6' : ''}`}
                   >
                     <button 
                       onClick={(e) => { 
@@ -133,12 +133,12 @@ const Row = ({ title, isLargeRow, movies }) => {
                           setPlayingMovie(movie);
                         }
                       }} 
-                      className="bg-white text-black w-10 h-10 flex items-center justify-center rounded-full hover:bg-gray-300 transition shadow-md mb-2"
+                      className="bg-white text-black w-8 h-8 md:w-10 md:h-10 flex items-center justify-center rounded-full hover:bg-gray-300 transition shadow-md mb-1 md:mb-2"
                     >
-                      <FaPlay size={12} className="ml-1" />
+                      <FaPlay size={10} className="ml-1 md:ml-1 md:size-[12px]" />
                     </button>
-                    <h3 className="text-white font-bold text-sm md:text-base leading-tight truncate">{movie.title}</h3>
-                    <p className="text-neutral-300 text-xs md:text-sm mt-1">{movie.year || movie.releaseYear || ''}</p>
+                    <h3 className="text-white font-bold text-xs md:text-sm leading-tight truncate">{movie.title}</h3>
+                    <p className="text-neutral-300 text-[10px] md:text-xs mt-0.5">{movie.year || movie.releaseYear || ''}</p>
                   </div>
                 </div>
               </div>
