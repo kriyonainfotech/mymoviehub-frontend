@@ -1,10 +1,12 @@
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { useEffect } from 'react';
 import Navbar from './components/Navbar';
+import BottomNav from './components/BottomNav';
 import Home from './pages/Home';
 import Movies from './pages/Movies';
 import TvSeries from './pages/TvSeries';
 import MyList from './pages/MyList';
+import MovieDetails from './pages/MovieDetails';
 import Admin from './pages/Admin';
 import Login from './pages/Login';
 import AdminLogin from './pages/AdminLogin';
@@ -43,12 +45,13 @@ const ProtectedRoute = ({ children }) => {
   return (
     <>
       <Navbar />
-      <div className="min-h-screen pb-10">
+      <div className="min-h-screen pb-16 md:pb-10">
         {children}
       </div>
+      <BottomNav />
       {/* Footer */}
-      <footer className="mt-16 text-center text-gray-500 text-sm mb-6">
-        <p>© 2026 MovieHub UI. Built with React and Tailwind CSS.</p>
+      <footer className="mt-16 text-center text-gray-500 text-sm mb-6 hidden md:block">
+        <p>Ac 2026 MovieHub UI. Built with React and Tailwind CSS.</p>
       </footer>
     </>
   );
@@ -89,6 +92,7 @@ function App() {
             <Route path="/tvseries" element={<ProtectedRoute><TvSeries /></ProtectedRoute>} />
             <Route path="/mylist" element={<ProtectedRoute><MyList /></ProtectedRoute>} />
             <Route path="/search" element={<ProtectedRoute><Search /></ProtectedRoute>} />
+            <Route path="/movie/:id" element={<ProtectedRoute><MovieDetails /></ProtectedRoute>} />
             
             {/* Admin Route */}
             <Route path="/admin" element={<AdminRoute><Admin /></AdminRoute>} />

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { FaPlay, FaPlus, FaThumbsUp, FaChevronDown, FaChevronLeft, FaChevronRight } from 'react-icons/fa';
-import MovieModal from './MovieModal';
 import VideoPlayer from './VideoPlayer';
 
 // Helper function to convert Google Drive view link to direct image link
@@ -16,6 +16,7 @@ export const getDriveDirectLink = (url) => {
 };
 
 const Row = ({ title, isLargeRow, movies }) => {
+  const navigate = useNavigate();
   const [selectedMovie, setSelectedMovie] = useState(null);
   const [playingMovie, setPlayingMovie] = useState(null);
   const [isHoveredRow, setIsHoveredRow] = useState(false);
@@ -107,7 +108,7 @@ const Row = ({ title, isLargeRow, movies }) => {
                   <img 
                     src={isLargeRow ? getDriveDirectLink(movie.driveLargeImageId || movie.driveImageId) : getDriveDirectLink(movie.driveImageId)} 
                     alt={movie.title}
-                    onClick={() => setSelectedMovie(movie)}
+                    onClick={() => navigate('/movie/' + movie._id)}
                     className={`rounded-md object-cover w-full transition-transform duration-300 ${isLargeRow ? 'h-[225px] md:h-[330px] ml-6' : 'h-[112px] md:h-[157px]'}`}
                   />
                   
@@ -121,7 +122,7 @@ const Row = ({ title, isLargeRow, movies }) => {
 
                   {/* Always Visible Details Overlay */}
                   <div 
-                    onClick={() => setSelectedMovie(movie)}
+                    onClick={() => navigate('/movie/' + movie._id)}
                     className={`flex absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent z-20 flex-col justify-end p-2 md:p-4 rounded-md cursor-pointer ${isLargeRow ? 'ml-6' : ''}`}
                   >
                     <button 
@@ -148,10 +149,6 @@ const Row = ({ title, isLargeRow, movies }) => {
         </div>
       </div>
 
-      {selectedMovie && (
-        <MovieModal movie={selectedMovie} onClose={() => setSelectedMovie(null)} onPlay={(ep) => setPlayingMovie(ep || selectedMovie)} />
-      )}
-      
       {playingMovie && (
         <VideoPlayer movie={playingMovie} onClose={() => setPlayingMovie(null)} />
       )}

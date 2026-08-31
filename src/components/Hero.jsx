@@ -1,14 +1,15 @@
 import { useState } from 'react';
 import { FaPlay, FaInfoCircle } from 'react-icons/fa';
 import VideoPlayer from './VideoPlayer';
-import MovieModal from './MovieModal';
+import { useNavigate } from 'react-router-dom';
 import { getDriveDirectLink } from './Row';
 
 const Hero = ({ banner }) => {
+  const navigate = useNavigate();
   const [playingMovie, setPlayingMovie] = useState(null);
   const [showModal, setShowModal] = useState(false);
 
-  if (!banner) return <div className="h-[70vh] md:h-[85vh] bg-[#141414]"></div>;
+  if (!banner) return <div className="h-20 bg-[#141414]"></div>;
 
   return (
     <>
@@ -30,19 +31,7 @@ const Hero = ({ banner }) => {
           
           <div className="flex space-x-3">
             <button 
-              onClick={() => {
-                if (banner.movie?.type === 'tvseries' && banner.movie?.seasons?.[0]?.episodes?.[0] && !banner.movie?.driveVideoId) {
-                  setPlayingMovie(banner.movie.seasons[0].episodes[0]);
-                } else {
-                  setPlayingMovie(banner.movie);
-                }
-              }}
-              className="flex items-center bg-white text-black px-6 py-2 rounded font-bold hover:bg-gray-300 transition"
-            >
-              <FaPlay className="mr-2" /> Play
-            </button>
-            <button 
-              onClick={() => setShowModal(true)}
+              onClick={() => navigate('/movie/' + banner.movie._id)}
               className="flex items-center bg-gray-500/70 text-white px-6 py-2 rounded font-bold hover:bg-gray-500/90 transition"
             >
               <FaInfoCircle className="mr-2" /> More Info

@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useSearchParams } from 'react-router-dom';
-import MovieModal from '../components/MovieModal';
+import { useNavigate } from 'react-router-dom';
 import { getDriveDirectLink } from '../components/Row';
 import { FaPlay, FaPlus, FaThumbsUp, FaChevronDown } from 'react-icons/fa';
 
 const Search = () => {
+  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const query = searchParams.get('q') || '';
   
@@ -91,7 +92,7 @@ const Search = () => {
                 <img 
                   src={getDriveDirectLink(movie.driveImageId)} 
                   alt={movie.title}
-                  onClick={() => setSelectedMovie(movie)}
+                  onClick={() => navigate('/movie/' + movie._id)}
                   className="rounded-t-md object-cover w-full aspect-video"
                   onError={(e) => { e.target.src = 'https://via.placeholder.com/300x168?text=No+Image' }}
                 />
@@ -129,7 +130,7 @@ const Search = () => {
                       </button>
                     </div>
                     <button 
-                      onClick={() => setSelectedMovie(movie)}
+                      onClick={() => navigate('/movie/' + movie._id)}
                       className="border-2 border-neutral-400 text-white p-2 rounded-full hover:border-white transition shadow-md"
                     >
                       <FaChevronDown size={14} />
@@ -157,13 +158,7 @@ const Search = () => {
         </div>
       )}
 
-      {selectedMovie && (
-        <MovieModal 
-          movie={selectedMovie} 
-          onClose={() => setSelectedMovie(null)} 
-          onPlay={() => {}} 
-        />
-      )}
+      
       
       {playingMovie && (
         <div className="fixed inset-0 bg-black z-[100] flex flex-col items-center justify-center">

@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react';
 import { FaTimes, FaPlay } from 'react-icons/fa';
 import { createPortal } from 'react-dom';
+import AdsterraAd from './AdsterraAd';
 
 const VideoPlayer = ({ movie, onClose }) => {
-  const [showAd, setShowAd] = useState(false);
-  const [adTimeLeft, setAdTimeLeft] = useState(10);
+  const [showAd, setShowAd] = useState(true); // Start with Ad Immediately
+  const [adTimeLeft, setAdTimeLeft] = useState(15);
+  const [firstAdSkipped, setFirstAdSkipped] = useState(false);
 
   // We unlock on unmount
   useEffect(() => {
@@ -20,12 +22,12 @@ const VideoPlayer = ({ movie, onClose }) => {
     };
   }, []);
 
-  // Fake Timer for Ads (Testing at 1 minute = 60000ms)
+  // Interval Timer for Ads (Every 30 minutes)
   useEffect(() => {
     const adInterval = setInterval(() => {
       setShowAd(true);
-      setAdTimeLeft(10); // 10 seconds ad
-    }, 60000); 
+      setAdTimeLeft(15);
+    }, 1800000); 
 
     return () => clearInterval(adInterval);
   }, []);
@@ -45,6 +47,7 @@ const VideoPlayer = ({ movie, onClose }) => {
 
   const skipAd = () => {
     setShowAd(false);
+    setFirstAdSkipped(true);
   };
 
   return createPortal(
@@ -62,19 +65,20 @@ const VideoPlayer = ({ movie, onClose }) => {
       {/* Video Ad Overlay (YouTube Style) */}
       {showAd && (
         <div className="absolute inset-0 bg-black/80 backdrop-blur-sm z-[100] flex flex-col items-center justify-center">
-          {/* The Banner Ad */}
-          <div className="w-full max-w-[300px] h-[250px] md:max-w-[728px] md:h-[90px] bg-[#1a1a1a] border border-gray-600 flex flex-col items-center justify-center rounded overflow-hidden relative shadow-2xl z-[120]">
-            <span className="text-gray-400 text-sm mb-2">Advertisement</span>
-            <a href="https://www.profitableratecpmnetwork.com/tuxrqgr8q1?key=ef6b0648714ba63c523d681e3229c280" target="_blank" rel="noopener noreferrer" className="bg-[#E50914] text-white px-6 py-2 rounded font-bold hover:bg-red-700 transition">
-              Click Here to Continue
-            </a>
+          {/* Real Adsterra Banner (300x250) */}
+          <div className="relative z-[120]">
+            <AdsterraAd 
+              width={300} 
+              height={250} 
+              adKey="d2de92205c1828fadc5fc266dc440f74"
+            />
           </div>
           
           {/* Ad Countdown / Skip Button Overlay */}
           <div className="absolute bottom-16 right-8 z-[110]">
             {adTimeLeft > 0 ? (
               <div className="bg-black/70 border border-white/20 text-white px-6 py-3 rounded text-lg font-bold">
-                Video will resume in {adTimeLeft}s
+                Video will start in {adTimeLeft}s
               </div>
             ) : (
               <button 
@@ -90,7 +94,7 @@ const VideoPlayer = ({ movie, onClose }) => {
 
       {/* Video Area */}
       <div className="absolute inset-0 w-full h-full flex items-center justify-center bg-black">
-        {movie?.driveVideoId ? (
+        {movie?.driveVideoId && firstAdSkipped ? (
           <iframe 
             src={movie.driveVideoId.replace('/view', '/preview') + (movie.driveVideoId.includes('?') ? '&autoplay=1' : '?autoplay=1')} 
             className="border-0 w-full h-full"

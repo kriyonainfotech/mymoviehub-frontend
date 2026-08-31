@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
 import { getDriveDirectLink } from '../components/Row';
-import MovieModal from '../components/MovieModal';
+import { useNavigate } from 'react-router-dom';
 import VideoPlayer from '../components/VideoPlayer';
 import AdsterraAd from '../components/AdsterraAd';
 import { FaPlay, FaTimes, FaThumbsUp, FaChevronDown } from 'react-icons/fa';
 
 const MyList = () => {
+  const navigate = useNavigate();
   const [myMovies, setMyMovies] = useState([]);
   const [likedMovies, setLikedMovies] = useState([]);
   const [selectedMovie, setSelectedMovie] = useState(null);
@@ -71,7 +72,7 @@ const MyList = () => {
                 <img 
                   src={getDriveDirectLink(movie.driveImageId)} 
                   alt={movie.title}
-                  onClick={() => setSelectedMovie(movie)}
+                  onClick={() => navigate('/movie/' + movie._id)}
                   className="rounded-t-md object-cover w-full aspect-video"
                   onError={(e) => { e.target.src = 'https://via.placeholder.com/300x168?text=No+Image' }}
                 />
@@ -114,7 +115,7 @@ const MyList = () => {
                       </button>
                     </div>
                     <button 
-                      onClick={() => setSelectedMovie(movie)}
+                      onClick={() => navigate('/movie/' + movie._id)}
                       className="border-2 border-neutral-400 text-white p-2 rounded-full hover:border-white transition shadow-md"
                     >
                       <FaChevronDown size={14} />
@@ -160,7 +161,7 @@ const MyList = () => {
                 
                 {/* Hover Card */}
                 <div className="absolute top-0 left-0 w-full opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 delay-300 z-50 transform group-hover:scale-125 bg-[#141414] rounded-md shadow-2xl origin-center pointer-events-none group-hover:pointer-events-auto border border-neutral-700/50">
-                  <img src={getDriveDirectLink(movie.driveImageId)} alt={movie.title} onClick={() => setSelectedMovie(movie)} className="rounded-t-md object-cover w-full aspect-video" onError={(e) => { e.target.src = 'https://via.placeholder.com/300x168?text=No+Image' }} />
+                  <img src={getDriveDirectLink(movie.driveImageId)} alt={movie.title} onClick={() => navigate('/movie/' + movie._id)} className="rounded-t-md object-cover w-full aspect-video" onError={(e) => { e.target.src = 'https://via.placeholder.com/300x168?text=No+Image' }} />
                   <div className="p-4 bg-[#141414] rounded-b-md text-left">
                     <div className="flex justify-between items-center mb-3">
                       <div className="flex gap-2">
@@ -171,7 +172,7 @@ const MyList = () => {
                           <FaTimes size={12} />
                         </button>
                       </div>
-                      <button onClick={() => setSelectedMovie(movie)} className="border-2 border-neutral-400 text-white p-2 rounded-full hover:border-white transition shadow-md">
+                      <button onClick={() => navigate('/movie/' + movie._id)} className="border-2 border-neutral-400 text-white p-2 rounded-full hover:border-white transition shadow-md">
                         <FaChevronDown size={14} />
                       </button>
                     </div>
@@ -198,9 +199,7 @@ const MyList = () => {
         )}
       </div>
 
-      {selectedMovie && (
-        <MovieModal movie={selectedMovie} onClose={() => setSelectedMovie(null)} onPlay={() => setPlayingMovie(selectedMovie)} />
-      )}
+      
       
       {playingMovie && (
         <VideoPlayer movie={playingMovie} onClose={() => setPlayingMovie(null)} />
