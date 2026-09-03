@@ -12,15 +12,16 @@ import Login from './pages/Login';
 import AdminLogin from './pages/AdminLogin';
 import Search from './pages/Search';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import axios from 'axios';
 
 const AdManager = () => {
   const location = useLocation();
 
   useEffect(() => {
-    const isAdmin = location.pathname.startsWith('/admin');
+    const isNoAdPage = location.pathname.startsWith('/secure-hub-panel') || location.pathname === '/login';
 
-    if (isAdmin) {
-      // Remove scripts if we are on admin page
+    if (isNoAdPage) {
+      // Remove scripts if we are on admin or login page
       const social = document.getElementById('adsterra-social');
       if (social) social.remove();
     } else {
@@ -37,6 +38,27 @@ const AdManager = () => {
   return null;
 };
 
+const SettingsManager = () => {
+  useEffect(() => {
+    const applySettings = async () => {
+      try {
+        const res = await axios.get(import.meta.env.VITE_API_URL + '/api/admin/settings');
+        if (res.data && res.data.disableInspect) {
+          document.addEventListener('contextmenu', e => e.preventDefault());
+          document.addEventListener('keydown', e => {
+            if (e.key === 'F12' || 
+               (e.ctrlKey && e.shiftKey && (e.key === 'I' || e.key === 'i' || e.key === 'J' || e.key === 'j' || e.key === 'C' || e.key === 'c')) || 
+               (e.ctrlKey && (e.key === 'U' || e.key === 'u'))) {
+              e.preventDefault();
+            }
+          });
+        }
+      } catch (err) { console.error('Failed to load settings', err); }
+    };
+    applySettings();
+  }, []);
+  return null;
+};
 
 // Protected Route for Normal Users
 const ProtectedRoute = ({ children }) => {
@@ -60,7 +82,7 @@ const ProtectedRoute = ({ children }) => {
 // Admin Route
 const AdminRoute = ({ children }) => {
   const { currentUser, isAdmin } = useAuth();
-  if (!currentUser) return <Navigate to="/admin/login" />;
+  if (!currentUser) return <Navigate to="/secure-hub-panel/login" />;
   if (!isAdmin) return <Navigate to="/" />;
   return children;
 };
@@ -69,8 +91,17 @@ const AdminRoute = ({ children }) => {
 const PublicRoute = ({ children }) => {
   const { currentUser, isAdmin } = useAuth();
   if (currentUser) {
-    if (isAdmin) return <Navigate to="/admin" />;
+    if (isAdmin) return <Navigate to="/secure-hub-panel" />;
     return <Navigate to="/" />;
+  }
+  return children;
+};
+
+// For the Admin Login page: if already admin, go to panel. If normal user, let them see it so they can log in as admin.
+const AdminLoginRoute = ({ children }) => {
+  const { currentUser, isAdmin } = useAuth();
+  if (currentUser && isAdmin) {
+    return <Navigate to="/secure-hub-panel" />;
   }
   return children;
 };
@@ -80,11 +111,12 @@ function App() {
     <AuthProvider>
       <Router>
         <AdManager />
+        <SettingsManager />
         <div className="bg-[#141414] min-h-screen text-white overflow-x-hidden">
           <Routes>
             {/* Public route */}
             <Route path="/login" element={<PublicRoute><Login /></PublicRoute>} />
-            <Route path="/admin/login" element={<PublicRoute><AdminLogin /></PublicRoute>} />
+            <Route path="/secure-hub-panel/login" element={<AdminLoginRoute><AdminLogin /></AdminLoginRoute>} />
             
             {/* Protected Routes (Normal Users) */}
             <Route path="/" element={<ProtectedRoute><Home /></ProtectedRoute>} />
@@ -95,7 +127,7 @@ function App() {
             <Route path="/movie/:id" element={<ProtectedRoute><MovieDetails /></ProtectedRoute>} />
             
             {/* Admin Route */}
-            <Route path="/admin" element={<AdminRoute><Admin /></AdminRoute>} />
+            <Route path="/secure-hub-panel" element={<AdminRoute><Admin /></AdminRoute>} />
             
             {/* Fallback Route */}
             <Route path="*" element={<Navigate to="/" />} />

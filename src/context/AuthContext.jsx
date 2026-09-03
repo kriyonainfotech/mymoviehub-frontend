@@ -32,12 +32,19 @@ export const AuthProvider = ({ children }) => {
       // Sync user to backend if it's a normal Google user
       if (user && user.email !== 'mymoviehub@admin.com') {
         try {
-          await axios.post(import.meta.env.VITE_API_URL + '/api/admin/users/sync', {
+          const res = await axios.post(import.meta.env.VITE_API_URL + '/api/admin/users/sync', {
             uid: user.uid,
             email: user.email,
             displayName: user.displayName,
             photoURL: user.photoURL
           });
+          
+          if (res.data && res.data.isBlocked) {
+            alert('Your account has been restricted by Admin.');
+            firebaseSignOut(auth);
+            setCurrentUser(null);
+            window.location.href = '/login';
+          }
         } catch (err) {
           console.error('Error syncing user', err);
         }
@@ -56,9 +63,10 @@ export const AuthProvider = ({ children }) => {
     return signInWithEmailAndPassword(auth, email, password);
   };
 
-  const logout = () => {
+  const logout = async () => {
     localStorage.removeItem('isStaticAdmin');
-    return firebaseSignOut(auth);
+    await firebaseSignOut(auth);
+    window.location.href = '/login';
   };
 
   const signupWithEmail = (email, password) => {

@@ -51,7 +51,7 @@ const VideoPlayer = ({ movie, onClose }) => {
   };
 
   return createPortal(
-    <div className="fixed inset-0 z-[9999] bg-black text-white">
+    <div className="fixed inset-0 z-[50000] bg-black text-white">
       {/* Top Close Button Overlay */}
       <div className="absolute top-4 right-6 z-[210]">
         <button 

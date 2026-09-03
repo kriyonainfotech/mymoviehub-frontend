@@ -50,7 +50,7 @@ const BottomNav = () => {
               </Link>
               
               {currentUser?.email === 'admin@moviehub.com' && (
-                <Link to="/admin" onClick={() => setShowDropdown(false)} className="flex flex-col items-center justify-center bg-[#252525] hover:bg-[#303030] rounded-xl p-4 gap-2 transition border border-gray-700/50">
+                <Link to="/secure-hub-panel" onClick={() => setShowDropdown(false)} className="flex flex-col items-center justify-center bg-[#252525] hover:bg-[#303030] rounded-xl p-4 gap-2 transition border border-gray-700/50">
                   <FaCog className="text-[#a855f7] text-xl" />
                   <span className="text-xs text-white font-medium">Admin Panel</span>
                 </Link>

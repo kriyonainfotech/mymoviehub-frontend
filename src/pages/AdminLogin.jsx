@@ -3,7 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 
 const AdminLogin = () => {
-  const { loginWithEmail, signupWithEmail, staticAdminLogin } = useAuth();
+  const { loginWithEmail, staticAdminLogin } = useAuth();
   const navigate = useNavigate();
   
   const [email, setEmail] = useState('');
@@ -17,13 +17,13 @@ const AdminLogin = () => {
       // Static bypass
       if ((email.trim() === 'admin' || email.trim() === 'admin@gmail.com') && password === 'admin') {
         staticAdminLogin();
-        navigate('/admin');
+        navigate('/secure-hub-panel');
         return;
       }
       
       await loginWithEmail(email.trim(), password);
       if (email.trim().toLowerCase() === 'mymoviehub@admin.com') {
-        navigate('/admin');
+        navigate('/secure-hub-panel');
       } else {
         navigate('/');
       }
@@ -33,21 +33,6 @@ const AdminLogin = () => {
     }
   };
 
-  const handleAdminSignup = async (e) => {
-    e.preventDefault();
-    try {
-      setError('');
-      if (email.trim().toLowerCase() !== 'mymoviehub@admin.com') {
-         setError('Only mymoviehub@admin.com can be registered as admin.');
-         return;
-      }
-      await signupWithEmail(email.trim(), password);
-      navigate('/admin');
-    } catch (err) {
-      console.error(err);
-      setError('Error creating admin: ' + err.message);
-    }
-  };
 
   return (
     <div className="min-h-screen bg-[#141414] text-white flex flex-col items-center justify-center relative overflow-hidden">
@@ -88,13 +73,7 @@ const AdminLogin = () => {
             Sign In to Admin Panel
           </button>
           
-          <button 
-            type="button"
-            onClick={handleAdminSignup}
-            className="bg-gray-700 text-white font-bold py-3 rounded mt-2 hover:bg-gray-600 transition"
-          >
-            Create Admin Account
-          </button>
+
         </form>
       </div>
     </div>

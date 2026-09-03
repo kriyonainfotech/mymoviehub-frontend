@@ -5,6 +5,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import VideoPlayer from '../components/VideoPlayer';
 import axios from 'axios';
 import AdsterraAd from '../components/AdsterraAd';
+import { useAuth } from '../context/AuthContext';
 
 const formatText = (text) => {
   if (!text) return 'Unknown';
@@ -14,6 +15,7 @@ const formatText = (text) => {
 };
 
 const MovieDetails = () => {
+  const { currentUser } = useAuth();
   const { id } = useParams();
   const navigate = useNavigate();
   const [currentMovie, setCurrentMovie] = useState(null);
@@ -25,6 +27,8 @@ const MovieDetails = () => {
 
   useEffect(() => {
     window.scrollTo(0,0);
+    setPlayingMovie(null);
+    setCurrentMovie(null);
     const fetchMovie = async () => {
       try {
         setLoading(true);
@@ -34,6 +38,16 @@ const MovieDetails = () => {
           setCurrentMovie(found);
           setSelectedSeasonIndex(0);
           setImageLoading(true);
+          
+          // Track history if user is logged in
+          if (currentUser && currentUser.uid && currentUser.email !== 'mymoviehub@admin.com') {
+             axios.post(import.meta.env.VITE_API_URL + '/api/admin/users/history', {
+                uid: currentUser.uid,
+                contentId: found._id,
+                title: found.title,
+                type: found.type || 'movie'
+             }).catch(err => console.error('History track error', err));
+          }
           
           // Fetch similar
           const filtered = res.data.filter(m => m.type === found.type && m._id !== found._id);
@@ -49,7 +63,7 @@ const MovieDetails = () => {
       }
     };
     fetchMovie();
-  }, [id]);
+  }, [id, currentUser]);
 
   const handleMovieChange = (m) => {
     navigate('/movie/' + m._id);
@@ -218,13 +232,18 @@ const MovieDetails = () => {
             </div>
           )}
 
-          {/* More Like This (Movies) */}
-          {similarMovies.length > 0 && currentMovie.type !== 'tvseries' && (
+          {/* More Like This */}
+          {similarMovies.length > 0 && (
             <div className="bg-[#141414] rounded-lg border border-gray-800 p-4">
               <h3 className="text-base font-bold text-white mb-4">More Like This</h3>
               <div className="flex flex-col gap-2">
                 {similarMovies.map(sm => (
-                  <div key={sm._id} onClick={() => handleMovieChange(sm)} className="flex items-center gap-3 group cursor-pointer hover:bg-[#1f1f1f] p-2 rounded-md transition border border-transparent hover:border-gray-800">
+                  <div key={sm._id} onClick={() => {
+                      setPlayingMovie(null);
+                      navigate('/movie/' + sm._id);
+                    }} 
+                    className="flex items-center gap-3 group cursor-pointer hover:bg-[#1f1f1f] p-2 rounded-md transition border border-transparent hover:border-gray-800"
+                  >
                     <div className="relative w-28 h-16 flex-shrink-0 rounded overflow-hidden">
                       <img src={getDriveDirectLink(sm.driveImageId)} alt={sm.title} className="w-full h-full object-cover opacity-90 group-hover:opacity-100 transition" />
                     </div>

@@ -1,8 +1,64 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
-import { FaLayerGroup, FaPlus, FaFilm, FaTv, FaTimes, FaEdit, FaTrash, FaImage, FaSignOutAlt, FaUserCircle, FaCopy } from 'react-icons/fa';
+import { FaLayerGroup, FaPlus, FaFilm, FaTv, FaTimes, FaEdit, FaTrash, FaImage, FaSignOutAlt, FaUserCircle, FaCopy, FaCog, FaBan, FaCheckCircle, FaHistory } from 'react-icons/fa';
 import { getDriveDirectLink } from '../components/Row';
 import { useAuth } from '../context/AuthContext';
+
+// Set global header for all axios requests made from the Admin panel
+axios.defaults.headers.common['x-admin-secret'] = import.meta.env.VITE_ADMIN_API_SECRET;
+
+const TagInput = ({ label, value, onChange, placeholder }) => {
+  const [inputValue, setInputValue] = useState('');
+  
+  // Normalize string value to array of tags
+  const tags = Array.isArray(value) 
+    ? value 
+    : (typeof value === 'string' && value.trim() ? value.split(',').map(s => s.trim()).filter(s => s) : []);
+
+  const handleKeyDown = (e) => {
+    if (e.key === 'Enter' || e.key === ',') {
+      e.preventDefault();
+      const val = inputValue.trim();
+      if (val && !tags.includes(val)) {
+        onChange([...tags, val].join(', '));
+      }
+      setInputValue('');
+    }
+  };
+
+  const removeTag = (tagToRemove) => {
+    onChange(tags.filter(tag => tag !== tagToRemove).join(', '));
+  };
+
+  return (
+    <div>
+      <label className="block text-sm font-bold text-gray-400 mb-2">{label}</label>
+      <div className="w-full bg-[#111] border border-gray-700 rounded p-2 flex flex-wrap gap-2 items-center min-h-[46px] focus-within:border-red-500">
+        {tags.map((tag, idx) => (
+          <div key={idx} className="bg-red-600/20 border border-red-500 text-red-100 px-2 py-1 rounded text-sm flex items-center gap-2">
+            {tag}
+            <FaTimes className="cursor-pointer text-red-400 hover:text-white" onClick={() => removeTag(tag)} />
+          </div>
+        ))}
+        <input 
+          type="text" 
+          className="bg-transparent outline-none flex-1 min-w-[120px] text-white p-1" 
+          placeholder={tags.length === 0 ? placeholder : ''}
+          value={inputValue}
+          onChange={(e) => setInputValue(e.target.value)}
+          onKeyDown={handleKeyDown}
+          onBlur={() => {
+            if (inputValue.trim()) {
+              onChange([...tags, inputValue.trim()].join(', '));
+              setInputValue('');
+            }
+          }}
+        />
+      </div>
+      <p className="text-xs text-gray-500 mt-1">Type and press Enter or Comma (,) to add multiple</p>
+    </div>
+  );
+};
 
 const Admin = () => {
   const { logout } = useAuth();
@@ -17,6 +73,7 @@ const Admin = () => {
   const [banners, setBanners] = useState([]);
   const [users, setUsers] = useState([]);
   const [notice, setNotice] = useState({ title: '', message: '', showTelegramButton: true, telegramLink: 'https://t.me/', isActive: false });
+  const [settings, setSettings] = useState({ disableInspect: false });
   
   // Category Form State
   const [catName, setCatName] = useState('');
@@ -41,6 +98,12 @@ const Admin = () => {
   };
   const [contentData, setContentData] = useState(initialContentState);
   const [selectedCategoryToAdd, setSelectedCategoryToAdd] = useState('');
+  const [historyUser, setHistoryUser] = useState(null);
+
+  // User Filter State
+  const [userSearchTerm, setUserSearchTerm] = useState('');
+  const [userFilter, setUserFilter] = useState('all');
+  const [userDateFilter, setUserDateFilter] = useState('');
 
   useEffect(() => {
     fetchCategories();
@@ -48,7 +111,27 @@ const Admin = () => {
     fetchBanners();
     fetchNotice();
     fetchUsers();
+    fetchSettings();
   }, []);
+
+  const fetchSettings = async () => {
+    try {
+      const res = await axios.get(import.meta.env.VITE_API_URL + '/api/admin/settings');
+      if (res.data) setSettings(res.data);
+    } catch (err) { console.error(err); }
+  };
+
+  const handleSaveSettings = async (e) => {
+    e.preventDefault();
+    try {
+      await axios.post(import.meta.env.VITE_API_URL + '/api/admin/settings', settings);
+      alert('Settings saved successfully!');
+      window.location.reload();
+    } catch (err) {
+      console.error(err);
+      alert('Failed to save settings');
+    }
+  };
 
   const fetchNotice = async () => {
     try {
@@ -95,6 +178,29 @@ const Admin = () => {
     } catch (err) {
       console.error(err);
       alert('Failed to save notice');
+    }
+  };
+
+  const handleDeleteUser = async (id) => {
+    if (!window.confirm('Are you sure you want to delete this user? They will have to sign up again.')) return;
+    try {
+      await axios.delete(import.meta.env.VITE_API_URL + `/api/admin/users/${id}`);
+      fetchUsers();
+    } catch (err) {
+      alert('Error deleting user');
+      console.error(err);
+    }
+  };
+
+  const handleBlockUser = async (id, currentStatus) => {
+    const action = currentStatus ? 'unblock' : 'block';
+    if (!window.confirm(`Are you sure you want to ${action} this user?`)) return;
+    try {
+      await axios.put(import.meta.env.VITE_API_URL + `/api/admin/users/${id}/block`);
+      fetchUsers();
+    } catch (err) {
+      alert(`Error trying to ${action} user`);
+      console.error(err);
     }
   };
 
@@ -260,36 +366,43 @@ const Admin = () => {
   const displayList = currentView === 'movies' ? movies.filter(m => m.type === 'movie') : movies.filter(m => m.type === 'tvseries');
 
   return (
-    <div className="h-screen overflow-hidden bg-[#0f0f0f] text-white flex">
+    <div className="h-screen overflow-hidden bg-[#0f0f0f] text-white flex flex-col lg:flex-row">
       
       {/* Sidebar */}
-      <aside className="w-64 bg-[#141414] border-r border-gray-800 flex flex-col pt-6 h-screen shrink-0">
-        <div className="px-6 mb-10">
+      <aside className="w-full lg:w-64 bg-[#141414] border-b lg:border-b-0 lg:border-r border-gray-800 flex flex-col pt-4 lg:pt-6 h-auto lg:h-screen shrink-0 z-20">
+        <div className="px-4 lg:px-6 mb-4 lg:mb-10 flex justify-between items-center">
           <h1 className="text-[#E50914] text-xl font-black uppercase tracking-wider drop-shadow-md">MY MOVIE HUB</h1>
+          <button onClick={logout} className="lg:hidden flex items-center text-gray-400 hover:text-white transition">
+            <FaSignOutAlt size={20} />
+          </button>
         </div>
-        <h2 className="text-gray-500 text-xs font-bold uppercase tracking-wider px-6 mb-4">Admin Menu</h2>
-        <nav className="flex-1 flex flex-col gap-1">
-          <div onClick={() => setCurrentView('categories')} className={`flex items-center gap-3 px-6 py-3 cursor-pointer transition ${currentView === 'categories' ? 'bg-red-600/10 border-r-4 border-red-600 text-red-500 font-medium' : 'text-gray-400 hover:text-gray-200 hover:bg-[#222]'}`}>
-            <FaLayerGroup /> Categories
+        <h2 className="hidden lg:block text-gray-500 text-xs font-bold uppercase tracking-wider px-6 mb-4">Admin Menu</h2>
+        
+        <nav className="flex lg:flex-col gap-2 lg:gap-1 overflow-x-auto px-4 lg:px-0 pb-3 lg:pb-0 [&::-webkit-scrollbar]:hidden" style={{ scrollbarWidth: 'none' }}>
+          <div onClick={() => setCurrentView('categories')} className={`whitespace-nowrap shrink-0 flex items-center gap-2 lg:gap-3 px-4 py-3 lg:px-6 lg:py-3 cursor-pointer transition rounded-full lg:rounded-none ${currentView === 'categories' ? 'bg-red-600/10 lg:border-r-4 border-red-600 text-red-500 font-medium' : 'text-gray-400 hover:text-gray-200 hover:bg-[#222]'}`}>
+            <FaLayerGroup size={18} /> <span className="hidden lg:inline">Categories</span>
           </div>
-          <div onClick={() => setCurrentView('movies')} className={`flex items-center gap-3 px-6 py-3 cursor-pointer transition ${currentView === 'movies' ? 'bg-red-600/10 border-r-4 border-red-600 text-red-500 font-medium' : 'text-gray-400 hover:text-gray-200 hover:bg-[#222]'}`}>
-            <FaFilm /> Movies
+          <div onClick={() => setCurrentView('movies')} className={`whitespace-nowrap shrink-0 flex items-center gap-2 lg:gap-3 px-4 py-3 lg:px-6 lg:py-3 cursor-pointer transition rounded-full lg:rounded-none ${currentView === 'movies' ? 'bg-red-600/10 lg:border-r-4 border-red-600 text-red-500 font-medium' : 'text-gray-400 hover:text-gray-200 hover:bg-[#222]'}`}>
+            <FaFilm size={18} /> <span className="hidden lg:inline">Movies</span>
           </div>
-          <div onClick={() => setCurrentView('series')} className={`flex items-center gap-3 px-6 py-3 cursor-pointer transition ${currentView === 'series' ? 'bg-red-600/10 border-r-4 border-red-600 text-red-500 font-medium' : 'text-gray-400 hover:text-gray-200 hover:bg-[#222]'}`}>
-            <FaTv /> TV Series
+          <div onClick={() => setCurrentView('series')} className={`whitespace-nowrap shrink-0 flex items-center gap-2 lg:gap-3 px-4 py-3 lg:px-6 lg:py-3 cursor-pointer transition rounded-full lg:rounded-none ${currentView === 'series' ? 'bg-red-600/10 lg:border-r-4 border-red-600 text-red-500 font-medium' : 'text-gray-400 hover:text-gray-200 hover:bg-[#222]'}`}>
+            <FaTv size={18} /> <span className="hidden lg:inline">TV Series</span>
           </div>
-          <div onClick={() => setCurrentView('banners')} className={`flex items-center gap-3 px-6 py-3 cursor-pointer transition ${currentView === 'banners' ? 'bg-red-600/10 border-r-4 border-red-600 text-red-500 font-medium' : 'text-gray-400 hover:text-gray-200 hover:bg-[#222]'}`}>
-            <FaImage /> Banners
+          <div onClick={() => setCurrentView('banners')} className={`whitespace-nowrap shrink-0 flex items-center gap-2 lg:gap-3 px-4 py-3 lg:px-6 lg:py-3 cursor-pointer transition rounded-full lg:rounded-none ${currentView === 'banners' ? 'bg-red-600/10 lg:border-r-4 border-red-600 text-red-500 font-medium' : 'text-gray-400 hover:text-gray-200 hover:bg-[#222]'}`}>
+            <FaImage size={18} /> <span className="hidden lg:inline">Banners</span>
           </div>
-          <div onClick={() => setCurrentView('notice')} className={`flex items-center gap-3 px-6 py-3 cursor-pointer transition ${currentView === 'notice' ? 'bg-red-600/10 border-r-4 border-red-600 text-red-500 font-medium' : 'text-gray-400 hover:text-gray-200 hover:bg-[#222]'}`}>
-            <FaLayerGroup /> Notice
+          <div onClick={() => setCurrentView('notice')} className={`whitespace-nowrap shrink-0 flex items-center gap-2 lg:gap-3 px-4 py-3 lg:px-6 lg:py-3 cursor-pointer transition rounded-full lg:rounded-none ${currentView === 'notice' ? 'bg-red-600/10 lg:border-r-4 border-red-600 text-red-500 font-medium' : 'text-gray-400 hover:text-gray-200 hover:bg-[#222]'}`}>
+            <FaLayerGroup size={18} /> <span className="hidden lg:inline">Notice</span>
           </div>
-          <div onClick={() => setCurrentView('users')} className={`flex items-center gap-3 px-6 py-3 cursor-pointer transition ${currentView === 'users' ? 'bg-red-600/10 border-r-4 border-red-600 text-red-500 font-medium' : 'text-gray-400 hover:text-gray-200 hover:bg-[#222]'}`}>
-            <FaUserCircle /> Users
+          <div onClick={() => setCurrentView('users')} className={`whitespace-nowrap shrink-0 flex items-center gap-2 lg:gap-3 px-4 py-3 lg:px-6 lg:py-3 cursor-pointer transition rounded-full lg:rounded-none ${currentView === 'users' ? 'bg-red-600/10 lg:border-r-4 border-red-600 text-red-500 font-medium' : 'text-gray-400 hover:text-gray-200 hover:bg-[#222]'}`}>
+            <FaUserCircle size={18} /> <span className="hidden lg:inline">Users</span>
+          </div>
+          <div onClick={() => setCurrentView('settings')} className={`whitespace-nowrap shrink-0 flex items-center gap-2 lg:gap-3 px-4 py-3 lg:px-6 lg:py-3 cursor-pointer transition rounded-full lg:rounded-none ${currentView === 'settings' ? 'bg-red-600/10 lg:border-r-4 border-red-600 text-red-500 font-medium' : 'text-gray-400 hover:text-gray-200 hover:bg-[#222]'}`}>
+            <FaCog size={18} /> <span className="hidden lg:inline">Settings</span>
           </div>
         </nav>
         
-        <div className="p-6 border-t border-gray-800">
+        <div className="hidden lg:block mt-auto p-6 border-t border-gray-800">
           <button 
             onClick={logout} 
             className="flex items-center gap-3 text-gray-400 hover:text-white transition w-full"
@@ -300,15 +413,16 @@ const Admin = () => {
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 p-8 md:p-12 overflow-y-auto h-screen relative">
+      <main className="flex-1 p-4 sm:p-6 md:p-8 overflow-y-auto relative">
         
         {/* ======================= CATEGORIES VIEW ======================= */}
         {currentView === 'categories' && (
-          <div className="max-w-4xl">
-            <h1 className="text-3xl font-bold mb-2">Manage Categories</h1>
-            <p className="text-gray-400 mb-8">Create categories and choose where they should appear.</p>
-            
-            <div className="mb-10">
+          <div className="max-w-6xl mx-auto">
+            <div className="flex flex-col lg:flex-row justify-between lg:items-center gap-4 mb-8 text-center lg:text-left">
+              <div>
+                <h1 className="text-2xl lg:text-3xl font-bold mb-2">Manage Categories</h1>
+                <p className="text-sm lg:text-base text-gray-400">Create categories and choose where they should appear.</p>
+              </div>
               <button 
                 onClick={() => {
                   setCategoryIdToEdit(null);
@@ -317,7 +431,7 @@ const Admin = () => {
                   setIsCatLargeRow(false);
                   setIsCategoryModalOpen(true);
                 }} 
-                className="bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-6 rounded shadow-lg flex items-center gap-2"
+                className="bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-6 rounded shadow-lg flex items-center justify-center gap-2 w-full lg:w-auto"
               >
                 <FaPlus /> Create New Category
               </button>
@@ -325,9 +439,9 @@ const Admin = () => {
 
             <h2 className="text-2xl font-semibold mb-6">Existing Categories</h2>
             <div className="bg-[#181818] border border-gray-800 rounded-lg overflow-hidden">
-              <div className="flex border-b border-gray-800">
+              <div className="flex flex-col md:flex-row border-b border-gray-800">
                 {['home', 'movie', 'tvseries'].map(tab => (
-                  <button key={tab} onClick={() => setActiveCategoryTab(tab)} className={`flex-1 py-4 font-bold capitalize ${activeCategoryTab === tab ? 'bg-red-600/10 text-red-500 border-b-2 border-red-500' : 'text-gray-400 hover:bg-[#222]'}`}>
+                  <button key={tab} onClick={() => setActiveCategoryTab(tab)} className={`flex-1 py-4 px-4 font-bold capitalize transition text-left md:text-center ${activeCategoryTab === tab ? 'bg-red-600/10 text-red-500 border-l-4 md:border-l-0 md:border-b-2 border-red-500' : 'text-gray-400 hover:bg-[#222]'}`}>
                     {tab === 'tvseries' ? 'TV Series' : tab} Section
                   </button>
                 ))}
@@ -341,9 +455,9 @@ const Admin = () => {
                       {visibleCategories.map(cat => (
                         <li key={cat._id} className="bg-[#222] p-4 rounded border border-gray-700 font-medium flex justify-between items-center group">
                           <span>{cat.name}</span>
-                          <div className="flex gap-3 opacity-0 group-hover:opacity-100 transition">
-                            <button onClick={() => handleEditCategory(cat)} className="text-blue-500 hover:text-blue-400"><FaEdit /></button>
-                            <button onClick={() => handleDeleteCategory(cat._id)} className="text-red-500 hover:text-red-400"><FaTrash /></button>
+                          <div className="flex gap-4 transition">
+                            <button onClick={() => handleEditCategory(cat)} className="text-blue-500 hover:text-blue-400"><FaEdit size={16} /></button>
+                            <button onClick={() => handleDeleteCategory(cat._id)} className="text-red-500 hover:text-red-400"><FaTrash size={16} /></button>
                           </div>
                         </li>
                       ))}
@@ -357,19 +471,19 @@ const Admin = () => {
 
         {/* ======================= MOVIES / SERIES LIST VIEW ======================= */}
         {(currentView === 'movies' || currentView === 'series') && (
-          <div className="max-w-6xl">
-            <div className="flex justify-between items-center mb-8">
+          <div className="max-w-6xl mx-auto">
+            <div className="flex flex-col lg:flex-row justify-between lg:items-center gap-4 mb-8 text-center lg:text-left">
               <div>
-                <h1 className="text-3xl font-bold mb-2">Manage {currentView === 'movies' ? 'Movies' : 'TV Series'}</h1>
-                <p className="text-gray-400">View, edit, or delete existing content.</p>
+                <h1 className="text-2xl lg:text-3xl font-bold mb-2">Manage {currentView === 'movies' ? 'Movies' : 'TV Series'}</h1>
+                <p className="text-sm lg:text-base text-gray-400">View, edit, or delete existing content.</p>
               </div>
-              <button onClick={openModal} className="bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-6 rounded shadow-lg flex items-center gap-2">
+              <button onClick={openModal} className="bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-6 rounded shadow-lg flex items-center justify-center gap-2 w-full lg:w-auto">
                 <FaPlus /> Add {currentView === 'movies' ? 'Movie' : 'Series'}
               </button>
             </div>
 
-            {/* List Table */}
-            <div className="bg-[#181818] border border-gray-800 rounded-lg overflow-hidden shadow-lg">
+            {/* Desktop Table View */}
+            <div className="hidden lg:block bg-[#181818] border border-gray-800 rounded-lg overflow-hidden shadow-lg">
               <table className="w-full text-left border-collapse">
                 <thead>
                   <tr className="bg-[#222] border-b border-gray-800">
@@ -403,18 +517,58 @@ const Admin = () => {
                 </tbody>
               </table>
             </div>
+
+            {/* Mobile Card View */}
+            <div className="lg:hidden flex flex-col gap-4">
+              {displayList.length === 0 ? (
+                <div className="p-8 bg-[#181818] rounded-lg border border-gray-800 text-center text-gray-500 italic">
+                  No items found. Click 'Add {currentView === 'movies' ? 'Movie' : 'Series'}' to create one.
+                </div>
+              ) : (
+                displayList.map(item => (
+                  <div key={item._id} className="bg-[#181818] border border-gray-800 rounded-lg p-5 flex flex-col gap-3 shadow-lg">
+                    <div className="flex justify-between items-start">
+                      <h3 className="font-bold text-lg text-white">{item.title}</h3>
+                      <span className="bg-[#222] text-gray-300 text-xs px-2 py-1 rounded font-mono">{item.year}</span>
+                    </div>
+                    
+                    {item.categories && item.categories.length > 0 && (
+                      <div className="flex flex-wrap gap-1">
+                        {item.categories.map((c, i) => (
+                          <span key={i} className="text-xs bg-red-600/10 text-red-500 px-2 py-1 rounded">
+                            {c.name}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                    
+                    <div className="border-t border-gray-800 pt-3 mt-1 flex justify-end gap-5">
+                      <button onClick={() => handleDuplicateContent(item)} className="flex items-center gap-2 text-sm text-green-500 hover:text-green-400" title="Duplicate">
+                        <FaCopy size={16} /> <span className="hidden sm:inline">Duplicate</span>
+                      </button>
+                      <button onClick={() => handleEditContent(item)} className="flex items-center gap-2 text-sm text-blue-500 hover:text-blue-400" title="Edit">
+                        <FaEdit size={16} /> <span className="hidden sm:inline">Edit</span>
+                      </button>
+                      <button onClick={() => handleDeleteContent(item._id)} className="flex items-center gap-2 text-sm text-red-500 hover:text-red-400" title="Delete">
+                        <FaTrash size={16} /> <span className="hidden sm:inline">Delete</span>
+                      </button>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
           </div>
         )}
 
         {/* ======================= BANNERS VIEW ======================= */}
         {currentView === 'banners' && (
-          <div className="max-w-6xl">
-            <div className="flex justify-between items-center mb-8">
+          <div className="max-w-6xl mx-auto">
+            <div className="flex flex-col lg:flex-row justify-between lg:items-center gap-4 mb-8 text-center lg:text-left">
               <div>
-                <h1 className="text-3xl font-bold mb-2">Manage Banners</h1>
-                <p className="text-gray-400">Set the Hero banners for Home, Movies, and TV Series pages.</p>
+                <h1 className="text-2xl lg:text-3xl font-bold mb-2">Manage Banners</h1>
+                <p className="text-sm lg:text-base text-gray-400">Upload and manage rotating banners.</p>
               </div>
-              <button onClick={() => { setBannerData(initialBannerState); setIsBannerModalOpen(true); }} className="bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-6 rounded shadow-lg flex items-center gap-2">
+              <button onClick={() => { setBannerData(initialBannerState); setIsBannerModalOpen(true); }} className="bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-6 rounded shadow-lg flex items-center justify-center gap-2 w-full lg:w-auto">
                 <FaPlus /> Create Banner
               </button>
             </div>
@@ -457,9 +611,9 @@ const Admin = () => {
         )}
         {/* ======================= NOTICE VIEW ======================= */}
         {currentView === 'notice' && (
-          <div className="max-w-4xl">
-            <h1 className="text-3xl font-bold mb-2">Important Note</h1>
-            <p className="text-gray-400 mb-8">Manage the global important note that appears on your pages.</p>
+          <div className="max-w-4xl mx-auto text-center lg:text-left">
+            <h1 className="text-2xl lg:text-3xl font-bold mb-2">Important Note</h1>
+            <p className="text-sm lg:text-base text-gray-400 mb-8">Manage the global important note that appears on your pages.</p>
             
             <form onSubmit={handleSaveNotice} className="bg-[#1f1f1f] p-6 rounded border border-gray-700">
                 <div className="mb-4">
@@ -506,45 +660,229 @@ const Admin = () => {
         )}
 
         {/* ======================= USERS VIEW ======================= */}
-        {currentView === 'users' && (
-          <div className="max-w-6xl">
-            <h1 className="text-3xl font-bold mb-2">Registered Users</h1>
-            <p className="text-gray-400 mb-8">View all users who have logged in via Google.</p>
-            
-            <div className="bg-[#181818] border border-gray-800 rounded-lg overflow-hidden shadow-lg">
-              <table className="w-full text-left border-collapse">
-                <thead>
-                  <tr className="bg-[#222] border-b border-gray-800">
-                    <th className="p-4 text-gray-400 font-semibold w-16">Profile</th>
-                    <th className="p-4 text-gray-400 font-semibold">Name</th>
-                    <th className="p-4 text-gray-400 font-semibold">Email</th>
-                    <th className="p-4 text-gray-400 font-semibold">Joined At</th>
-                    <th className="p-4 text-gray-400 font-semibold">Last Login</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {users.length === 0 ? (
-                    <tr>
-                      <td colSpan="5" className="p-8 text-center text-gray-500 italic">No users found.</td>
+        {currentView === 'users' && (() => {
+          const filteredUsers = users.filter(u => {
+            const matchesSearch = (u.displayName || '').toLowerCase().includes(userSearchTerm.toLowerCase()) || 
+                                  (u.email || '').toLowerCase().includes(userSearchTerm.toLowerCase());
+            const matchesFilter = userFilter === 'all' || 
+                                  (userFilter === 'blocked' && u.isBlocked) || 
+                                  (userFilter === 'active' && !u.isBlocked);
+            let matchesDate = true;
+            if (userDateFilter) {
+              const uDate = new Date(u.lastLogin).toISOString().split('T')[0];
+              matchesDate = uDate === userDateFilter;
+            }
+            return matchesSearch && matchesFilter && matchesDate;
+          });
+
+          return (
+            <div className="max-w-6xl mx-auto">
+              <div className="flex flex-col lg:flex-row justify-between lg:items-end gap-4 mb-8 text-center lg:text-left">
+                <div>
+                  <h1 className="text-2xl lg:text-3xl font-bold mb-2">Registered Users</h1>
+                  <p className="text-sm lg:text-base text-gray-400">View all users who have logged in via Google.</p>
+                </div>
+                <div className="flex flex-col lg:flex-row gap-4 w-full lg:w-auto">
+                  <input 
+                    type="date"
+                    value={userDateFilter}
+                    onChange={(e) => setUserDateFilter(e.target.value)}
+                    className="bg-[#111] border border-gray-800 rounded p-2 text-sm text-gray-300 focus:outline-none focus:border-red-600"
+                    style={{ colorScheme: 'dark' }}
+                    title="Filter by Login Date"
+                  />
+                  <input 
+                    type="text" 
+                    placeholder="Search name or email..." 
+                    value={userSearchTerm}
+                    onChange={(e) => setUserSearchTerm(e.target.value)}
+                    className="bg-[#111] border border-gray-800 rounded p-2 text-sm text-white focus:outline-none focus:border-red-600 w-64"
+                  />
+                  <select 
+                    value={userFilter}
+                    onChange={(e) => setUserFilter(e.target.value)}
+                    className="bg-[#111] border border-gray-800 rounded p-2 text-sm text-gray-300 focus:outline-none focus:border-red-600"
+                  >
+                    <option value="all">All Users</option>
+                    <option value="active">Active</option>
+                    <option value="blocked">Blocked</option>
+                  </select>
+                </div>
+              </div>
+              
+              <>
+              {/* Desktop Table View */}
+              <div className="hidden lg:block bg-[#181818] border border-gray-800 rounded-lg overflow-hidden shadow-lg overflow-x-auto">
+                <table className="w-full text-left border-collapse min-w-[800px]">
+                  <thead>
+                    <tr className="bg-[#222] border-b border-gray-800">
+                      <th className="p-4 text-gray-400 font-semibold w-16">Profile</th>
+                      <th className="p-4 text-gray-400 font-semibold">Name</th>
+                      <th className="p-4 text-gray-400 font-semibold">Email</th>
+                      <th className="p-4 text-gray-400 font-semibold">Network & Device</th>
+                      <th className="p-4 text-gray-400 font-semibold">Last Login</th>
+                      <th className="p-4 text-gray-400 font-semibold text-right">Actions</th>
                     </tr>
-                  ) : (
-                    users.map(user => (
+                  </thead>
+                  <tbody>
+                    {filteredUsers.length === 0 ? (
+                      <tr>
+                        <td colSpan="6" className="p-8 text-center text-gray-500 italic">No users found.</td>
+                      </tr>
+                    ) : (
+                      filteredUsers.map(user => (
                       <tr key={user._id} className="border-b border-gray-800 hover:bg-[#1a1a1a]">
-                        <td className="p-4">
+                        <td className="p-4 align-top">
                           <div className="w-10 h-10 rounded-full bg-red-600 flex items-center justify-center text-white font-bold text-lg uppercase shadow-lg">
                             {(user.displayName || user.email || '?').charAt(0)}
                           </div>
                         </td>
-                        <td className="p-4 font-bold text-gray-200">{user.displayName || 'N/A'}</td>
-                        <td className="p-4 text-gray-400">{user.email}</td>
-                        <td className="p-4 text-gray-400">{new Date(user.createdAt).toLocaleDateString()}</td>
-                        <td className="p-4 text-gray-400">{new Date(user.lastLogin).toLocaleString()}</td>
+                        <td className="p-4 font-bold text-gray-200 align-top">
+                          {user.displayName || 'N/A'}
+                          {user.isBlocked && <span className="ml-2 px-2 py-0.5 bg-red-900/50 text-red-400 text-[10px] rounded border border-red-800">BLOCKED</span>}
+                        </td>
+                        <td className="p-4 text-gray-400 align-top">{user.email}</td>
+                        <td className="p-4 text-gray-400 text-sm align-top">
+                          {user.lastIp && <div className="text-blue-400 font-mono text-xs mb-1">IP: {user.lastIp}</div>}
+                          {user.city && user.country && <div className="mb-1 text-gray-300">📍 {user.city}, {user.country}</div>}
+                          {user.isp && <div className="mb-1 text-gray-300">🌐 {user.isp}</div>}
+                          {user.userAgent && (
+                            <div className="text-gray-500 text-xs mt-1" title={user.userAgent}>
+                              {(() => {
+                                const ua = user.userAgent;
+                                let os = 'Unknown OS';
+                                if (ua.includes('Windows')) os = '🖥️ Windows';
+                                else if (ua.includes('Mac OS')) os = '🍎 Mac';
+                                else if (ua.includes('Android')) os = '📱 Android';
+                                else if (ua.includes('iPhone') || ua.includes('iPad')) os = '📱 iOS';
+                                else if (ua.includes('Linux')) os = '🐧 Linux';
+
+                                let browser = 'Unknown Browser';
+                                if (ua.includes('Edg')) browser = 'Edge';
+                                else if (ua.includes('Chrome')) browser = 'Chrome';
+                                else if (ua.includes('Firefox')) browser = 'Firefox';
+                                else if (ua.includes('Safari')) browser = 'Safari';
+
+                                return <span>{os} • {browser}</span>;
+                              })()}
+                            </div>
+                          )}
+                        </td>
+                        <td className="p-4 text-gray-400 align-top">
+                           {new Date(user.lastLogin).toLocaleString()}
+                           <div className="text-xs text-gray-500 mt-1">Joined: {new Date(user.createdAt).toLocaleDateString()}</div>
+                        </td>
+                        <td className="p-4 text-right align-top flex justify-end gap-2">
+                          <button onClick={() => setHistoryUser(user)} className="p-2 text-blue-500 hover:text-blue-400" title="View History"><FaHistory size={18} /></button>
+                          <button onClick={() => handleBlockUser(user._id, user.isBlocked)} className={`p-2 ${user.isBlocked ? 'text-green-500 hover:text-green-400' : 'text-orange-500 hover:text-orange-400'}`} title={user.isBlocked ? "Unblock User" : "Block User"}>
+                            {user.isBlocked ? <FaCheckCircle size={18} /> : <FaBan size={18} />}
+                          </button>
+                          <button onClick={() => handleDeleteUser(user._id)} className="text-red-500 hover:text-red-400 p-2" title="Delete User"><FaTrash size={18} /></button>
+                        </td>
                       </tr>
                     ))
                   )}
-                </tbody>
-              </table>
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Mobile Card View */}
+              <div className="lg:hidden flex flex-col gap-4">
+                {filteredUsers.length === 0 ? (
+                  <div className="p-8 text-center text-gray-500 italic bg-[#181818] border border-gray-800 rounded-lg">No users found.</div>
+                ) : (
+                  filteredUsers.map(user => (
+                    <div key={user._id} className="bg-[#181818] border border-gray-800 rounded-lg p-4 flex flex-col gap-3 shadow-md relative">
+                      <div className="flex items-center gap-3">
+                        <div className="w-12 h-12 rounded-full bg-red-600 flex items-center justify-center text-white font-bold text-xl uppercase shadow-lg flex-shrink-0">
+                          {(user.displayName || user.email || '?').charAt(0)}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <h4 className="font-bold text-gray-200 truncate flex items-center gap-2">
+                            {user.displayName || 'N/A'}
+                            {user.isBlocked && <span className="px-2 py-0.5 bg-red-900/50 text-red-400 text-[10px] rounded border border-red-800 shrink-0">BLOCKED</span>}
+                          </h4>
+                          <p className="text-sm text-gray-400 truncate">{user.email}</p>
+                        </div>
+                      </div>
+                      
+                      <div className="bg-[#222] rounded p-3 text-xs text-gray-400 space-y-1">
+                        {user.lastIp && <div className="text-blue-400 font-mono">IP: {user.lastIp}</div>}
+                        {user.city && user.country && <div className="text-gray-300">📍 {user.city}, {user.country}</div>}
+                        {user.isp && <div className="text-gray-300">🌐 {user.isp}</div>}
+                        {user.userAgent && (
+                          <div className="text-gray-500 mt-1">
+                            {(() => {
+                              const ua = user.userAgent;
+                              let os = 'Unknown OS';
+                              if (ua.includes('Windows')) os = '🖥️ Windows';
+                              else if (ua.includes('Mac OS')) os = '🍎 Mac';
+                              else if (ua.includes('Android')) os = '📱 Android';
+                              else if (ua.includes('iPhone') || ua.includes('iPad')) os = '📱 iOS';
+                              else if (ua.includes('Linux')) os = '🐧 Linux';
+
+                              let browser = 'Unknown Browser';
+                              if (ua.includes('Edg')) browser = 'Edge';
+                              else if (ua.includes('Chrome')) browser = 'Chrome';
+                              else if (ua.includes('Firefox')) browser = 'Firefox';
+                              else if (ua.includes('Safari')) browser = 'Safari';
+
+                              return <span>{os} • {browser}</span>;
+                            })()}
+                          </div>
+                        )}
+                      </div>
+                      
+                      <div className="text-xs text-gray-400 flex justify-between items-end">
+                        <div>
+                          <div><span className="text-gray-500">Last:</span> {new Date(user.lastLogin).toLocaleString()}</div>
+                          <div className="text-gray-500">Joined: {new Date(user.createdAt).toLocaleDateString()}</div>
+                        </div>
+                        <div className="flex gap-2">
+                          <button onClick={() => setHistoryUser(user)} className="p-2 bg-[#2a2a2a] rounded text-blue-500 hover:text-blue-400" title="View History"><FaHistory size={14} /></button>
+                          <button onClick={() => handleBlockUser(user._id, user.isBlocked)} className={`p-2 bg-[#2a2a2a] rounded ${user.isBlocked ? 'text-green-500 hover:text-green-400' : 'text-orange-500 hover:text-orange-400'}`} title={user.isBlocked ? "Unblock User" : "Block User"}>
+                            {user.isBlocked ? <FaCheckCircle size={14} /> : <FaBan size={14} />}
+                          </button>
+                          <button onClick={() => handleDeleteUser(user._id)} className="p-2 bg-[#2a2a2a] rounded text-red-500 hover:text-red-400" title="Delete User"><FaTrash size={14} /></button>
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+              </>
             </div>
+          );
+        })()}
+
+        {/* ======================= SETTINGS VIEW ======================= */}
+        {currentView === 'settings' && (
+          <div className="max-w-4xl mx-auto text-center lg:text-left">
+            <h1 className="text-2xl lg:text-3xl font-bold mb-2">Global Settings</h1>
+            <p className="text-sm lg:text-base text-gray-400 mb-8">Manage app-wide settings and security features.</p>
+            
+            <form onSubmit={handleSaveSettings} className="bg-[#1f1f1f] p-6 rounded border border-gray-700">
+                <div className="mb-4">
+                  <label className="block text-sm font-bold text-gray-400 mb-2">Security: Disable Inspect Element (Right Click / F12)</label>
+                  <label className="flex items-center cursor-pointer">
+                    <input 
+                      type="checkbox" 
+                      className="sr-only peer"
+                      checked={settings.disableInspect || false}
+                      onChange={e => setSettings({...settings, disableInspect: e.target.checked})}
+                    />
+                    <div className="w-11 h-6 bg-gray-600 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-red-600 relative"></div>
+                    <span className="ml-3 text-sm font-medium text-gray-300">
+                      {settings.disableInspect ? 'Enabled (Users cannot inspect)' : 'Disabled (Default browser behavior)'}
+                    </span>
+                  </label>
+                  <p className="text-xs text-gray-500 mt-2">When enabled, this will block right-click, F12, and Ctrl+Shift+I across the entire public website to prevent users from easily inspecting the code or stealing assets.</p>
+                </div>
+                
+                <button type="submit" className="bg-red-600 text-white font-bold py-3 px-8 rounded mt-4 hover:bg-red-700 transition">
+                  Save Settings
+                </button>
+            </form>
           </div>
         )}
 
@@ -552,12 +890,12 @@ const Admin = () => {
 
       {/* ======================= CREATE CONTENT MODAL ======================= */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-[100] flex justify-center items-center bg-black/80 backdrop-blur-sm p-4">
-          <div className="w-full max-w-4xl bg-[#141414] max-h-[95vh] rounded-xl shadow-2xl flex flex-col border border-gray-800 overflow-hidden">
+        <div className="fixed inset-0 z-[100] flex justify-center items-center bg-black/80 backdrop-blur-sm p-0 md:p-4">
+          <div className="w-full h-full md:h-auto max-w-4xl bg-[#141414] md:max-h-[95vh] rounded-none md:rounded-xl shadow-2xl flex flex-col border-0 md:border border-gray-800 overflow-hidden">
             
             {/* Modal Header */}
-            <div className="flex justify-between items-center p-6 border-b border-gray-800 bg-[#181818]">
-              <h2 className="text-2xl font-bold">
+            <div className="flex justify-between items-center p-4 md:p-6 border-b border-gray-800 bg-[#181818]">
+              <h2 className="text-xl md:text-2xl font-bold">
                 {contentData._id ? 'Edit' : 'Add New'} {currentView === 'movies' ? 'Movie' : 'TV Series'}
               </h2>
               <button onClick={() => setIsModalOpen(false)} className="text-gray-400 hover:text-white bg-[#222] p-2 rounded-full">
@@ -566,13 +904,13 @@ const Admin = () => {
             </div>
 
             {/* Modal Body */}
-            <div className="flex-1 overflow-y-auto p-8">
-              <form id="content-form" onSubmit={handleContentSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-6 pb-20">
+            <div className="flex-1 overflow-y-auto p-4 md:p-8">
+              <form id="content-form" onSubmit={handleContentSubmit} className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6 pb-20">
                 
                 {/* Category Assignment */}
-                <div className="md:col-span-2 bg-[#1f1f1f] p-5 rounded border border-gray-700">
+                <div className="lg:col-span-2 bg-[#1f1f1f] p-5 rounded border border-gray-700">
                   <h3 className="text-lg font-bold mb-4 text-red-500 flex items-center gap-2"><FaLayerGroup /> Assign to Categories</h3>
-                  <div className="flex gap-4 items-end mb-4">
+                  <div className="flex flex-col sm:flex-row gap-2 sm:gap-4 items-stretch sm:items-end mb-4">
                     <div className="flex-1">
                       <label className="block text-sm font-bold text-gray-400 mb-2">Select Category</label>
                       <select value={selectedCategoryToAdd} onChange={e => setSelectedCategoryToAdd(e.target.value)} className="w-full bg-[#111] border border-gray-600 rounded p-3 text-white">
@@ -582,7 +920,7 @@ const Admin = () => {
                         ))}
                       </select>
                     </div>
-                    <button type="button" onClick={handleAddCategoryToContent} className="bg-zinc-700 hover:bg-zinc-600 text-white font-bold p-3 px-6 rounded flex items-center gap-2 h-[50px]">
+                    <button type="button" onClick={handleAddCategoryToContent} className="bg-zinc-700 hover:bg-zinc-600 text-white font-bold p-3 px-6 rounded flex items-center justify-center gap-2 h-auto sm:h-[50px] mt-2 sm:mt-0">
                       <FaPlus /> Add
                     </button>
                   </div>
@@ -603,7 +941,7 @@ const Admin = () => {
 
                 {/* Removed 'Show on Pages' section as requested */}
 
-                <div className="md:col-span-2 border-t border-gray-800 pt-4 mt-2"><h3 className="text-lg font-bold text-white">General Info</h3></div>
+                <div className="lg:col-span-2 border-t border-gray-800 pt-4 mt-2"><h3 className="text-lg font-bold text-white">General Info</h3></div>
 
                 <div>
                   <label className="block text-sm font-bold text-gray-400 mb-2">Title</label>
@@ -634,12 +972,20 @@ const Admin = () => {
                   <input type="text" value={contentData.writer || ''} onChange={e => setContentData({...contentData, writer: e.target.value})} className="w-full bg-[#111] border border-gray-700 rounded p-3" />
                 </div>
                 <div className="md:col-span-2">
-                  <label className="block text-sm font-bold text-gray-400 mb-2">Cast (comma separated)</label>
-                  <input type="text" value={contentData.cast} onChange={e => setContentData({...contentData, cast: e.target.value})} className="w-full bg-[#111] border border-gray-700 rounded p-3" />
+                  <TagInput 
+                    label="Cast Members" 
+                    placeholder="e.g. Yash, Sanjay Dutt" 
+                    value={contentData.cast} 
+                    onChange={val => setContentData({...contentData, cast: val})} 
+                  />
                 </div>
                 <div className="md:col-span-2">
-                  <label className="block text-sm font-bold text-gray-400 mb-2">Genres (comma separated)</label>
-                  <input type="text" value={contentData.genres} onChange={e => setContentData({...contentData, genres: e.target.value})} className="w-full bg-[#111] border border-gray-700 rounded p-3" />
+                  <TagInput 
+                    label="Genres" 
+                    placeholder="e.g. Action, Drama" 
+                    value={contentData.genres} 
+                    onChange={val => setContentData({...contentData, genres: val})} 
+                  />
                 </div>
 
                 {/* Google Drive Attachments */}
@@ -778,9 +1124,9 @@ const Admin = () => {
             </div>
 
             {/* Modal Footer */}
-            <div className="p-6 border-t border-gray-800 bg-[#181818] flex justify-end gap-4">
-              <button onClick={() => setIsModalOpen(false)} className="px-6 py-3 font-bold text-gray-300 hover:text-white">Cancel</button>
-              <button form="content-form" type="submit" className="bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-10 rounded shadow-lg">Save</button>
+            <div className="p-4 md:p-6 border-t border-gray-800 bg-[#181818] flex flex-col sm:flex-row justify-end gap-3 sm:gap-4">
+              <button onClick={() => setIsModalOpen(false)} className="px-6 py-3 font-bold text-gray-300 hover:text-white w-full sm:w-auto text-center">Cancel</button>
+              <button form="content-form" type="submit" className="bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-10 rounded shadow-lg w-full sm:w-auto text-center">Save</button>
             </div>
 
           </div>
@@ -789,16 +1135,16 @@ const Admin = () => {
 
       {/* ======================= CATEGORY MODAL ======================= */}
       {isCategoryModalOpen && (
-        <div className="fixed inset-0 z-[100] flex justify-center items-center bg-black/80 backdrop-blur-sm p-4">
-          <div className="w-full max-w-2xl bg-[#181818] rounded-xl shadow-2xl flex flex-col border border-gray-800 overflow-hidden">
-            <div className="flex justify-between items-center p-6 border-b border-gray-800 bg-[#222]">
-              <h2 className="text-xl font-bold flex items-center gap-2">
+        <div className="fixed inset-0 z-[100] flex justify-center items-center bg-black/80 backdrop-blur-sm p-0 md:p-4">
+          <div className="w-full h-full md:h-auto max-w-2xl bg-[#181818] rounded-none md:rounded-xl shadow-2xl flex flex-col border-0 md:border border-gray-800 overflow-hidden max-h-screen md:max-h-[90vh]">
+            <div className="flex justify-between items-center p-4 md:p-6 border-b border-gray-800 bg-[#222]">
+              <h2 className="text-lg md:text-xl font-bold flex items-center gap-2">
                 <FaLayerGroup className="text-red-600" /> {categoryIdToEdit ? 'Edit Category' : 'Create New Category'}
               </h2>
-              <button onClick={() => setIsCategoryModalOpen(false)} className="text-gray-400 hover:text-white"><FaTimes size={20} /></button>
+              <button onClick={() => setIsCategoryModalOpen(false)} className="text-gray-400 hover:text-white bg-[#333] p-2 rounded-full"><FaTimes size={16} /></button>
             </div>
             
-            <div className="p-6 overflow-y-auto max-h-[70vh]">
+            <div className="p-4 md:p-6 overflow-y-auto">
               <form onSubmit={handleAddCategory}>
                 <div className="mb-6">
                   <label className="block text-sm font-bold text-gray-400 mb-2">Category Name</label>
@@ -807,35 +1153,35 @@ const Admin = () => {
                 
                 <div className="mb-8">
                   <label className="block text-sm font-bold text-gray-400 mb-3">Show this category in:</label>
-                  <div className="flex flex-wrap gap-6">
+                  <div className="flex flex-wrap gap-4 sm:gap-6">
                     {['home', 'movie', 'tvseries'].map(sec => (
                       <label key={sec} className="flex items-center gap-3 cursor-pointer group">
                         <input type="checkbox" className="hidden" checked={catSections.includes(sec)} onChange={() => handleSectionToggle(sec)} />
                         <div className={`w-5 h-5 rounded border flex items-center justify-center ${catSections.includes(sec) ? 'bg-red-600 border-red-600' : 'bg-transparent border-gray-600 group-hover:border-gray-400'}`}>
                           {catSections.includes(sec) && <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>}
                         </div>
-                        <span className="capitalize font-medium text-gray-300">{sec === 'tvseries' ? 'TV Series' : sec}</span>
+                        <span className="capitalize font-medium text-gray-300 text-sm sm:text-base">{sec === 'tvseries' ? 'TV Series' : sec}</span>
                       </label>
                     ))}
                   </div>
                 </div>
 
                 <div className="mb-8">
-                  <label className="flex items-center gap-3 cursor-pointer group">
+                  <label className="flex items-start sm:items-center gap-3 cursor-pointer group">
                     <input type="checkbox" className="hidden" checked={isCatLargeRow} onChange={e => setIsCatLargeRow(e.target.checked)} />
-                    <div className={`w-5 h-5 rounded border flex items-center justify-center ${isCatLargeRow ? 'bg-blue-600 border-blue-600' : 'bg-transparent border-gray-600 group-hover:border-gray-400'}`}>
+                    <div className={`w-5 h-5 mt-1 sm:mt-0 rounded border flex items-center justify-center shrink-0 ${isCatLargeRow ? 'bg-blue-600 border-blue-600' : 'bg-transparent border-gray-600 group-hover:border-gray-400'}`}>
                       {isCatLargeRow && <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>}
                     </div>
                     <div>
-                      <span className="font-bold text-white block">Use Numbered UI (Large Row)</span>
-                      <span className="text-xs text-gray-400">Enable this to show large numbers (1, 2, 3...) next to items (e.g. for "Top 10" sections).</span>
+                      <span className="font-bold text-white block text-sm sm:text-base">Use Numbered UI (Large Row)</span>
+                      <span className="text-xs text-gray-400 leading-tight block mt-1">Enable this to show large numbers (1, 2, 3...) next to items (e.g. for "Top 10" sections).</span>
                     </div>
                   </label>
                 </div>
 
-                <div className="flex justify-end gap-4 mt-8 pt-6 border-t border-gray-800">
-                  <button type="button" onClick={() => setIsCategoryModalOpen(false)} className="px-6 py-2 font-bold text-gray-400 hover:text-white">Cancel</button>
-                  <button type="submit" className="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-8 rounded shadow-lg">
+                <div className="flex flex-col sm:flex-row justify-end gap-3 sm:gap-4 mt-8 pt-6 border-t border-gray-800">
+                  <button type="button" onClick={() => setIsCategoryModalOpen(false)} className="px-6 py-3 font-bold text-gray-400 hover:text-white w-full sm:w-auto text-center">Cancel</button>
+                  <button type="submit" className="bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-8 rounded shadow-lg w-full sm:w-auto text-center">
                     {categoryIdToEdit ? 'Update Category' : 'Save Category'}
                   </button>
                 </div>
@@ -847,63 +1193,107 @@ const Admin = () => {
 
       {/* ======================= CREATE BANNER MODAL ======================= */}
       {isBannerModalOpen && (
-        <div className="fixed inset-0 z-[100] flex justify-center items-center bg-black/80 backdrop-blur-sm">
-          <div className="w-full max-w-2xl bg-[#181818] rounded-xl shadow-2xl flex flex-col border border-gray-800 overflow-hidden">
-            <div className="flex justify-between items-center p-6 border-b border-gray-800 bg-[#222]">
-              <h2 className="text-xl font-bold">{bannerData._id ? 'Edit' : 'Create'} Banner</h2>
-              <button onClick={() => setIsBannerModalOpen(false)} className="text-gray-400 hover:text-white"><FaTimes size={20} /></button>
+        <div className="fixed inset-0 z-[100] flex justify-center items-center bg-black/80 backdrop-blur-sm p-0 md:p-4">
+          <div className="w-full h-full md:h-auto max-w-2xl bg-[#181818] rounded-none md:rounded-xl shadow-2xl flex flex-col border-0 md:border border-gray-800 overflow-hidden max-h-screen md:max-h-[90vh]">
+            <div className="flex justify-between items-center p-4 md:p-6 border-b border-gray-800 bg-[#222]">
+              <h2 className="text-lg md:text-xl font-bold">{bannerData._id ? 'Edit' : 'Create'} Banner</h2>
+              <button onClick={() => setIsBannerModalOpen(false)} className="text-gray-400 hover:text-white bg-[#333] p-2 rounded-full"><FaTimes size={16} /></button>
             </div>
             
-            <div className="p-6 overflow-y-auto max-h-[70vh]">
-              <form id="banner-form" onSubmit={handleBannerSubmit} className="space-y-4">
+            <div className="p-4 md:p-6 overflow-y-auto">
+              <form id="banner-form" onSubmit={handleBannerSubmit} className="space-y-3 md:space-y-4">
                 <div>
-                  <label className="block text-sm font-bold text-gray-400 mb-3">Show on Pages</label>
-                  <div className="flex gap-6">
+                  <label className="block text-xs md:text-sm font-bold text-gray-400 mb-1 md:mb-2">Show on Pages</label>
+                  <div className="flex flex-wrap gap-4 sm:gap-6">
                     {['home', 'movies', 'tvseries'].map(page => (
-                      <label key={page} className="flex items-center gap-3 cursor-pointer group">
+                      <label key={page} className="flex items-center gap-2 cursor-pointer group">
                         <input type="checkbox" className="hidden" checked={bannerData.pages?.includes(page) || false} onChange={() => handleBannerPageToggle(page)} />
-                        <div className={`w-5 h-5 rounded border flex items-center justify-center ${bannerData.pages?.includes(page) ? 'bg-red-600 border-red-600' : 'bg-transparent border-gray-600 group-hover:border-gray-400'}`}>
+                        <div className={`w-4 h-4 md:w-5 md:h-5 rounded border flex items-center justify-center shrink-0 ${bannerData.pages?.includes(page) ? 'bg-red-600 border-red-600' : 'bg-transparent border-gray-600 group-hover:border-gray-400'}`}>
                           {bannerData.pages?.includes(page) && <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>}
                         </div>
-                        <span className="capitalize font-medium text-gray-300">{page === 'tvseries' ? 'TV Series' : page}</span>
+                        <span className="capitalize font-medium text-gray-300 text-sm">{page === 'tvseries' ? 'TV Series' : page}</span>
                       </label>
                     ))}
                   </div>
                 </div>
                 
                 <div>
-                  <label className="block text-sm font-bold text-gray-400 mb-2">Link to Movie / Series</label>
-                  <select value={bannerData.movie ? (typeof bannerData.movie === 'object' ? bannerData.movie._id : bannerData.movie) : ''} onChange={e => setBannerData({...bannerData, movie: e.target.value})} className="w-full bg-[#111] border border-gray-700 rounded p-3 text-white" required>
+                  <label className="block text-xs md:text-sm font-bold text-gray-400 mb-1 md:mb-2">Link to Movie / Series</label>
+                  <select value={bannerData.movie ? (typeof bannerData.movie === 'object' ? bannerData.movie._id : bannerData.movie) : ''} onChange={e => setBannerData({...bannerData, movie: e.target.value})} className="w-full bg-[#111] border border-gray-700 rounded p-2 md:p-3 text-sm md:text-base text-white" required>
                     <option value="">-- Select a Movie/Series --</option>
                     {movies.map(m => <option key={m._id} value={m._id}>{m.title}</option>)}
                   </select>
                 </div>
 
                 <div>
-                  <label className="block text-sm font-bold text-gray-400 mb-2">Banner Title</label>
-                  <input type="text" value={bannerData.title} onChange={e => setBannerData({...bannerData, title: e.target.value})} className="w-full bg-[#111] border border-gray-700 rounded p-3 text-white" required />
+                  <label className="block text-xs md:text-sm font-bold text-gray-400 mb-1 md:mb-2">Banner Title</label>
+                  <input type="text" value={bannerData.title} onChange={e => setBannerData({...bannerData, title: e.target.value})} className="w-full bg-[#111] border border-gray-700 rounded p-2 md:p-3 text-sm md:text-base text-white" required />
                 </div>
                 
                 <div>
-                  <label className="block text-sm font-bold text-gray-400 mb-2">Subtitle</label>
-                  <input type="text" value={bannerData.subtitle} onChange={e => setBannerData({...bannerData, subtitle: e.target.value})} className="w-full bg-[#111] border border-gray-700 rounded p-3 text-white" required />
+                  <label className="block text-xs md:text-sm font-bold text-gray-400 mb-1 md:mb-2">Subtitle</label>
+                  <input type="text" value={bannerData.subtitle} onChange={e => setBannerData({...bannerData, subtitle: e.target.value})} className="w-full bg-[#111] border border-gray-700 rounded p-2 md:p-3 text-sm md:text-base text-white" required />
                 </div>
                 
                 <div>
-                  <label className="block text-sm font-bold text-gray-400 mb-2">Description</label>
-                  <textarea rows="3" value={bannerData.description} onChange={e => setBannerData({...bannerData, description: e.target.value})} className="w-full bg-[#111] border border-gray-700 rounded p-3 text-white" required />
+                  <label className="block text-xs md:text-sm font-bold text-gray-400 mb-1 md:mb-2">Description</label>
+                  <textarea rows="2" value={bannerData.description} onChange={e => setBannerData({...bannerData, description: e.target.value})} className="w-full bg-[#111] border border-gray-700 rounded p-2 md:p-3 text-sm md:text-base text-white" required />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-bold text-gray-400 mb-2">Background Image (Drive Public Link)</label>
-                  <input type="text" value={bannerData.bgImage} onChange={e => setBannerData({...bannerData, bgImage: e.target.value})} className="w-full bg-[#111] border border-gray-700 rounded p-3 text-white" required />
+                  <label className="block text-xs md:text-sm font-bold text-gray-400 mb-1 md:mb-2">Background Image (Drive Public Link)</label>
+                  <input type="text" value={bannerData.bgImage} onChange={e => setBannerData({...bannerData, bgImage: e.target.value})} className="w-full bg-[#111] border border-gray-700 rounded p-2 md:p-3 text-sm md:text-base text-white" required />
                 </div>
               </form>
             </div>
 
-            <div className="p-6 border-t border-gray-800 bg-[#222] flex justify-end gap-4">
-              <button onClick={() => setIsBannerModalOpen(false)} className="px-6 py-2 font-bold text-gray-400 hover:text-white">Cancel</button>
-              <button form="banner-form" type="submit" className="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-8 rounded">Save Banner</button>
+            <div className="p-4 md:p-6 border-t border-gray-800 bg-[#222] flex flex-col sm:flex-row justify-end gap-3 sm:gap-4">
+              <button onClick={() => setIsBannerModalOpen(false)} className="px-6 py-3 font-bold text-gray-400 hover:text-white w-full sm:w-auto text-center">Cancel</button>
+              <button form="banner-form" type="submit" className="bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-8 rounded shadow-lg w-full sm:w-auto text-center">Save Banner</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* HISTORY MODAL */}
+      {historyUser && (
+        <div className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center p-0 md:p-4 overflow-y-auto">
+          <div className="bg-[#141414] border-0 md:border border-gray-800 rounded-none md:rounded-lg w-full h-full md:h-auto max-w-lg shadow-2xl flex flex-col md:max-h-[95vh]">
+            <div className="flex justify-between items-center p-4 md:p-6 border-b border-gray-800">
+              <h2 className="text-lg md:text-xl font-bold text-white flex items-center gap-2">
+                <FaHistory className="text-red-600" /> Watch History
+              </h2>
+              <button onClick={() => setHistoryUser(null)} className="text-gray-400 hover:text-white bg-[#333] p-2 rounded-full">
+                <FaTimes size={16} />
+              </button>
+            </div>
+            
+            <div className="p-4 md:p-6 overflow-y-auto flex-1">
+              <div className="mb-4">
+                <span className="text-gray-400">User:</span> <span className="font-bold text-white">{historyUser.displayName || historyUser.email}</span>
+              </div>
+              
+              {(!historyUser.watchHistory || historyUser.watchHistory.length === 0) ? (
+                <div className="text-center text-gray-500 py-10 italic">No watch history found for this user.</div>
+              ) : (
+                <div className="flex flex-col gap-3">
+                  {historyUser.watchHistory.map((item, i) => (
+                    <div key={i} className="bg-[#1f1f1f] border border-gray-800 rounded p-4 flex flex-col gap-1">
+                      <div className="flex justify-between items-start">
+                        <span className="font-bold text-red-500">{item.title}</span>
+                        <span className="text-xs text-gray-500 bg-[#111] px-2 py-1 rounded capitalize">{item.type}</span>
+                      </div>
+                      <span className="text-sm text-gray-400">
+                        {new Date(item.viewedAt).toLocaleDateString()} at {new Date(item.viewedAt).toLocaleTimeString()}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+            
+            <div className="p-4 border-t border-gray-800 bg-[#222] flex justify-end">
+              <button onClick={() => setHistoryUser(null)} className="px-6 py-2 bg-gray-700 hover:bg-gray-600 font-bold text-white rounded">Close</button>
             </div>
           </div>
         </div>

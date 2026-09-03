@@ -48,7 +48,7 @@ const Navbar = () => {
     ? 'bg-zinc-700 text-white font-bold px-4 py-1.5 rounded-full transition-colors shadow-lg' 
     : 'bg-zinc-800/90 text-gray-300 hover:text-white hover:bg-zinc-700 px-4 py-1.5 rounded-full transition-colors shadow-md';
 
-  if (location.pathname.startsWith('/admin')) {
+  if (location.pathname.startsWith('/secure-hub-panel')) {
     return null;
   }
 
@@ -116,7 +116,7 @@ const Navbar = () => {
                 {currentUser?.email}
               </div>
               {isAdmin && (
-                <Link to="/admin" onClick={() => setShowDropdown(false)} className="px-4 py-2 hover:bg-gray-800 text-sm transition">
+                <Link to="/secure-hub-panel" onClick={() => setShowDropdown(false)} className="px-4 py-2 hover:bg-gray-800 text-sm transition">
                   Admin Panel
                 </Link>
               )}
